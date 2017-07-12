@@ -32,3 +32,15 @@ def inverse_transform_sampling(data, n_bins=40, n_samples=1000):
     inv_cdf = interpolate.interp1d(cum_values, bin_edges)
     r = np.random.rand(n_samples)
     return inv_cdf(r)
+
+
+def create_exponential_decreasing_function(N, x, gamma):
+    beta = N/(x**(-1.0*gamma))
+    Y = np.random.exponential(beta, 50000)
+
+    plt.hist(Y, normed=True, bins=250,lw=0,alpha=.8)
+
+    plt.show()
+    print(Y)
+
+create_exponential_decreasing_function(100, 2400, 2)

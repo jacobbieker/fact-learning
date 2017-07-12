@@ -9,9 +9,11 @@ Tasks
 		Implement a way to generate a toy simulation. Features we might need:
 
 		1. Takes a Funktion like: N*x^(-gamma) as input
+		   - This function is what is used to create the CDF which is then inverted to get the sample of data points?
 
 		2. Acceptance: The 'detector' should have a finite probability to miss events. This probability should be dependent on 'x'. Make sure you can activate / deactivate (f(x)=1) the acceptance funtion.
-
+            - Seems like deactivating the acceptance of the detector is simply making it the perfect detector
+         
 		3. At least 1 pseudo-observable which is correlated to 'x'. E.g. something like an energy proxy if 'x' is ne true energy.
 
 		- One possible design: Let us assume 'x' is the particle energy and our detector is a series of N chambers. 
