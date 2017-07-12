@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+from scipy.stats import norm, expon
 from scipy.stats import chi2
 from scipy.optimize import fmin_l_bfgs_b as minimizer
 from scipy.special import gammaln
@@ -38,9 +38,20 @@ def create_exponential_decreasing_function(N, x, gamma):
     beta = N/(x**(-1.0*gamma))
     Y = np.random.exponential(beta, 50000)
 
-    plt.hist(Y, normed=True, bins=250,lw=0,alpha=.8)
+    H,X1 = np.histogram(Y, normed=True, bins=250)
+    dx = X1[1] - X1[0]
+    F1 = np.cumsum(H)*dx
 
+    # "Exact" CDF, matches almost perfectly the one above it
+    X2 = np.sort(Y)
+    F2 = np.array(range(50000))/float(50000)
+
+    plt.plot(X2, F2)
+
+    plt.plot(X1[1:], F1)
     plt.show()
+
+    #plt.show()
     print(Y)
 
 create_exponential_decreasing_function(100, 2400, 2)
