@@ -14,9 +14,20 @@ Tasks
 
 		3. At least 1 pseudo-observable which is correlated to 'x'. E.g. something like an energy proxy if 'x' is ne true energy.
 
-		- One possible design: Let us assume 'x' is the particle energy and our detector is a series of N chambers. The particles fly through all this chambers with a constant energy loss until the particle lost all its energy (more complicated way is to replace the constant energy lost with randomly occuring energy losses). Each chambers has a detection threshold and measures the energy lost by the particle while it is in the chambers. The total energy lost in the chambers has to be above the threshold and the detected amount of energy is a smeared value of the actual lost energy. With the threshold and the smearing there is a probability > 0 to not particle (required acceptance) the number of triggered chambers and 'signal' detected by those chambers can ve used to calculate additional pseud-observables (e.g. mean signal of all triggered chambers).
+		- One possible design: Let us assume 'x' is the particle energy and our detector is a series of N chambers. 
+		The particles fly through all these chambers with a constant energy loss until the particle lost all its energy 
+		(more complicated way is to replace the constant energy lost with randomly occuring energy losses). 
+		Each chambers has a detection threshold and measures the energy lost by the particle while it is in the chambers. 
+		The total energy lost in the chambers has to be above the threshold and the detected amount of energy is a smeared 
+		value of the actual lost energy. With the threshold and the smearing there is a probability > 0 to not detect the particle 
+		(required acceptance) the number of triggered chambers and 'signal' detected by those chambers can be used to 
+		calculate additional pseudo-observables (e.g. mean signal of all triggered chambers).
 
-		- Keep in mind we need parameters to change the behaviour of our toy MC. In particular we want to make harder/easier to tell which is the true x based on the observables. For the more complex approach those parameters might be the resolution of the chambers and the threshold of the chambers. Perfect would be also have a setting for the detector to have the perfect detector e.g. no smearing no threshold0 --> The detector is able to measure a value that is the true value or rather can be unambiguously calculated from the measured value
+		- Keep in mind we need parameters to change the behaviour of our toy MC. 
+		In particular we want to make harder/easier to tell which is the true x based on the observables. 
+		For the more complex approach those parameters might be the resolution of the chambers and the threshold of the chambers. 
+		Perfect would be also have a setting for the detector to have the perfect detector 
+		e.g. no smearing no threshold0 --> The detector is able to measure a value that is the true value or rather can be unambiguously calculated from the measured value
 
 
 2. Unfolding
@@ -26,7 +37,8 @@ Tasks
 
 				- Make plots like https://arxiv.org/pdf/hep-ex/0208022.pdf Fig. 3 for changing number of events in the unfolding and different toy mc settings
 
-				- Unfold and calc errors for multiple drawn datasets (~100 to 500). Calculate/plot the mean/std of (unfolding_result - true_distribution) / unfolding_error . Think about the interpretation of those numbers and what we want to have for a good unfolding and error calculation
+				- Unfold and calc errors for multiple drawn datasets (~100 to 500). Calculate/plot the mean/std of (unfolding_result - true_distribution) / unfolding_error . 
+				Think about the interpretation of those numbers and what we want to have for a good unfolding and error calculation
 
 				- Investigate the impact of regularization via eigenvalue cut-off
 
