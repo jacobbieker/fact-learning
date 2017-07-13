@@ -1,5 +1,7 @@
 import numpy as np
 from numpy.random import normal, gamma
+import matplotlib.pyplot as plt
+
 
 class Detector:
     '''
@@ -37,13 +39,15 @@ class Detector:
     ----------
         ???
     '''
+
     def __init__(self,
                  n_chambers=100,
                  threshold_chambers=1.,
                  resolution_chamber=1.,
                  energy_loss='const',
                  loss_rate=10.,
-                 noise=0.):
+                 noise=0.,
+                 plot=False):
 
         self.n_chambers = n_chambers
         self.threshold_chambers = threshold_chambers
@@ -51,6 +55,7 @@ class Detector:
         self.energy_loss = energy_loss
         self.loss_rate = loss_rate
         self.noise = noise
+        self.plot = plot
 
         raise NotImplementedError
 
@@ -105,7 +110,7 @@ class Detector:
                 real_distance_travelled = gamma(shape=k, scale=theta, size=self.n_chambers)
 
                 # How much energy the particle loses each time is fixed here as a fraction
-                particle_random_loss = 10.0/100.0
+                particle_random_loss = 10.0 / 100.0
 
                 # Go through the distance travelled and see where the particle emits energy
                 total_distance = 0.0
@@ -163,7 +168,7 @@ class Detector:
         for particle_number, chambers in enumerate(chamber_hits):
             for chamber_number, energy_value in enumerate(chambers):
                 # Generate the smearing, based on the energy of the particle received, with std 1/root(N) energy
-                smear = normal(scale=1.0/np.sqrt(energy_value))
+                smear = normal(scale=1.0 / np.sqrt(energy_value))
                 smeared_value = energy_value + smear[chamber_number]
 
                 if smeared_value >= self.threshold_chambers:
@@ -187,4 +192,31 @@ class Detector:
         true_hits = self.generate_true_energy_losses(energies)
         noise_hits = self.generate_noise(true_hits.shape[0])
         chamber_hits = true_hits + noise_hits
-        return self.generate_chamber_signal(chamber_hits)
+        signal = self.generate_chamber_signal(chamber_hits)
+        if self.plot:
+            self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
+        return signal
+
+    def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
+        ''' This function produces various plots from the simulation
+
+        Parameters
+        ----------
+        energies :
+        true_hits:
+        noise_hits:
+        chamber_hits:
+        signal:
+
+        Returns
+        -------
+        Nothing. Displays multiple plots
+        '''
+        plt.plot(true_hits[1],signal[1])
+        plt.xlabel("True hits")
+        plt.ylabel("Signal")
+        plt.show()
+
+        plt.plot(signal[1]/true_hits[1])
+        plt.title("Signal / True Hits")
+        plt.show()
