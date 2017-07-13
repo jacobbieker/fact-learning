@@ -81,8 +81,6 @@ class Detector:
         k = self.loss_rate / theta
 
         if self.energy_loss == 'const':
-            # Use loss_rate as the fixed fraction loss like loss_rate/100.
-            fraction_lost = self.loss_rate/100. # Currently Not Used
 
             for particle_number, energy in enumerate(energies):
                 # Create a gamma distribution with a mean of the loss_rate for every chamber
@@ -107,7 +105,7 @@ class Detector:
                 real_distance_travelled = gamma(shape=k, scale=theta, size=self.n_chambers)
 
                 # How much energy the particle loses each time is fixed here as a fraction
-                particle_random_loss = 10./100.
+                particle_random_loss = 10.0/100.0
 
                 # Go through the distance travelled and see where the particle emits energy
                 total_distance = 0.0
@@ -143,8 +141,6 @@ class Detector:
 
         noise_hits = np.zeros(shape=(n_events.shape, self.n_chambers))
 
-
-
         raise NotImplementedError
 
     def generate_chamber_signal(self, chamber_hits):
@@ -153,7 +149,7 @@ class Detector:
 
         Parameters
         ----------
-        true_hits : array_like, shape=(n_events, n_chambers)
+        chamber_hits : array_like, shape=(n_events, n_chambers)
             Generate hits in for each event in each chamber
 
         Returns
@@ -161,7 +157,19 @@ class Detector:
         signal : array_like, shape=(n_events, n_chambers)
             Signal return by each chamber
         '''
-        raise NotImplementedError
+
+        signal = np.zeros_like(chamber_hits)
+
+        for particle_number, chambers in enumerate(chamber_hits):
+            for chamber_number, energy_value in enumerate(chambers):
+                # Generate the smearing, based on the energy of the particle received, with std 1/root(N) energy
+                smear = normal(scale=1.0/np.sqrt(energy_value))
+                smeared_value = energy_value + smear[chamber_number]
+
+                if smeared_value >= self.threshold_chambers:
+                    signal[particle_number][chamber_number] = smeared_value
+
+        return signal
 
     def simulate(self, energies):
         '''This function returns the signal of each chamber for each events.
