@@ -144,7 +144,27 @@ class Detector:
             Array containing the amount of lost energy in each chamber
         '''
 
+        # Idea: The self.noise parameter sets the mean + variance? or max? in each detector chamber
+        # Supposed to be expected signal, so can be around there.
+        # Currently, detectors have a resolution of 1.0, the entire detector is essentially 1 pixel
+        # So max should just shift it up by the expected amount?
+        # And if there are more than 1 pixel, it should be randomly distributed between them all
+        # So, based off the self.resolution_chamber, noise gets distributed into that many bins
+        # but that doesn't fit in with the noise_hits shape, since the shape is not three dimensional
+
         noise_hits = np.zeros(shape=(n_events.shape, self.n_chambers))
+
+        # If we go with a higher resolution means that the noise is randomly distributed around the detector...
+
+        for event in n_events:
+            for chamber in range(self.n_chambers):
+                noise_level = self.noise
+                # If using resolution as different parts, one more for loop under this line
+                location_noise = np.random.uniform(high=noise_level)
+                noise_hits[event][chamber] = location_noise
+                # If using resolution to split chambers, here is where the subtract leaves the rest of the noise level
+                # to be distributed to the other chambers, last one getting the remainder
+                noise_level -= location_noise
 
         raise NotImplementedError
 
@@ -196,11 +216,12 @@ class Detector:
         noise_hits = self.generate_noise(true_hits.shape[0])
         chamber_hits = true_hits + noise_hits
         signal = self.generate_chamber_signal(chamber_hits)
+        psuedo_observables = self.generate_pseudo_observables(signal)
         if self.plot:
-            self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
+            self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal, psuedo_observables)
         return signal
 
-    def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
+    def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal, psuedo_observables):
         ''' This function produces various plots from the simulation
 
         Parameters
@@ -224,6 +245,14 @@ class Detector:
         plt.title("Signal / True Hits")
         plt.show()
 
+        # Plotting the psuedo-observables vs the true energy hits
+        plt.plot(true_hits[1], psuedo_observables[1])
+        plt.xlabel("True Energy")
+        plt.ylabel("Psuedo-Observables")
+        plt.show()
+
+
+
         # Plot
         raise NotImplementedError
 
@@ -246,11 +275,11 @@ class Detector:
 
         energy_for_hit = 1.0  # Energy required for each "hit" on the detector
         # Psuedo-observables are only one observable at the moment
-        psuedo_oobservables = np.zeros_like(signal)
+        psuedo_observables = np.zeros_like(signal)
 
         for particle_number, chambers in enumerate(signal):
             for chamber_number, energy_value in enumerate(chambers):
                 number_of_hits = np.floor(energy_value / energy_for_hit)
-                psuedo_oobservables[particle_number][chamber_number] = number_of_hits
+                psuedo_observables[particle_number][chamber_number] = number_of_hits
 
-        return psuedo_oobservables
+        return psuedo_observables
