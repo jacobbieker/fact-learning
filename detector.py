@@ -267,6 +267,7 @@ class Detector:
         #plt.scatter(true_hits[1], signal[1])
         plt.xlabel("True Energy")
         plt.ylabel("Signal")
+        plt.title("True Energy vs Signal for each Chamber and each Event")
         plt.show()
 
         if self.make_noise:
