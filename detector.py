@@ -28,7 +28,7 @@ class Detector:
 
     loss_rate : float
         Mean energy loss per meter for 'const'.
-        Mean distance between energy losses for 'random'.
+        Mean distance between energy losses for 'random'. Every loss is 10% of the total energy
         Maybe it make more sense to let the particle lose a fixed fraction.
 
     noise : float
@@ -61,7 +61,7 @@ class Detector:
                  noise=0.,
                  distribution="binomial",
                  smearing=True,
-                 make_noise = True,
+                 make_noise=True,
                  plot=False):
 
         self.n_chambers = n_chambers
@@ -126,7 +126,7 @@ class Detector:
                 real_distance_travelled = gamma(shape=k, scale=theta, size=self.n_chambers)
 
                 # How much energy the particle loses each time is fixed here as a fraction
-                particle_random_loss = 10.0 / 100.0
+                particle_random_loss = 0.1
 
                 # Go through the distance travelled and see where the particle emits energy
                 total_distance = 0.0
@@ -266,9 +266,35 @@ class Detector:
 
         #plt.scatter(true_hits[1], signal[1])
         plt.xlabel("True Energy")
-        plt.ylabel("Signal")
+        plt.ylabel("Signal (Number of Photons)")
         plt.title("True Energy vs Signal for each Chamber and each Event")
         plt.show()
+
+        # Now plot energy per bin
+        figure = plt.figure()
+        ax = figure.add_subplot(111)
+
+        for index in range(energies.shape[0]):
+            ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
+            #ax.scatter(np.arange(0, self.n_chambers), signal[index])
+        plt.title("True Energy per Chamber per Event")
+        plt.ylabel("Energy Value")
+        plt.xlabel("Chamber Number")
+        plt.show()
+
+        # Now plot energy per bin
+        figure = plt.figure()
+        ax = figure.add_subplot(111)
+
+        for index in range(energies.shape[0]):
+            #ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
+            ax.scatter(np.arange(0, self.n_chambers), signal[index])
+        plt.title("Signal per Chamber per Event")
+        plt.ylabel("Number of Photons")
+        plt.xlabel("Chamber Number")
+        plt.show()
+
+
 
         if self.make_noise:
             plt.hist(noise_hits, 10)
@@ -277,7 +303,7 @@ class Detector:
 
 
 # Try it out
-energies = normal(loc=10000.0, scale=5000, size=1000)
+energies = normal(loc=100.0, scale=50, size=2)
 
-detector = Detector(distribution='gaussian', energy_loss='random', plot=True)
+detector = Detector(distribution='gaussian', energy_loss='const', make_noise=False, smearing=False, resolution_chamber=1., noise=1., plot=True)
 detector.simulate(energies)
