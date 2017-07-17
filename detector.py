@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.random import normal, gamma
 import matplotlib.pyplot as plt
+import scipy.stats as stats
 
 
 class Detector:
@@ -294,7 +295,26 @@ class Detector:
         plt.xlabel("Chamber Number")
         plt.show()
 
+        figure = plt.figure()
+        ax = figure.add_subplot(111)
 
+        sum_chambers = np.sum(true_hits, axis=0)
+        sum_signal = np.sum(signal, axis=0)
+
+        ax.hist(sum_chambers, bins=20, label="True Energy")
+        ax.hist(sum_signal, bins=20, label="Measured Photons")
+        plt.legend(loc='best')
+        plt.show()
+
+        n, x, _ = plt.hist(sum_chambers, bins=np.linspace(min(sum_chambers), max(sum_chambers), 50), normed=True,
+                           label="True Energy")
+        t, y, _ = plt.hist(sum_signal, bins=np.linspace(min(sum_signal), max(sum_signal), 50),
+                           histtype=u'step', normed=True, label="Measured Photons")
+        plt.legend(loc='best')
+        plt.title("True Energy Distribution vs Measured Distribution")
+        plt.ylabel("Normalized Value")
+        plt.xlabel("Total Energy per chamber")
+        plt.show()
 
         if self.make_noise:
             plt.hist(noise_hits, 10)
@@ -303,7 +323,7 @@ class Detector:
 
 
 # Try it out
-energies = normal(loc=100.0, scale=50, size=2)
+energies = normal(loc=100000.0, scale=50000, size=10)
 
 detector = Detector(distribution='gaussian', energy_loss='const', make_noise=False, smearing=False, resolution_chamber=1., noise=1., plot=True)
 detector.simulate(energies)
