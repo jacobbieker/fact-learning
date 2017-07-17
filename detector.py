@@ -33,13 +33,16 @@ class Detector:
 
     noise : float
         We can also add some kind of noise hits and this parameter
-        is the expected noise signal per chamber per event.
+        is the expected noise signal per chamber per event. It is the mean of the normal distribution
 
     distribution: ['binomial','gaussian']
         The distribution used, with the resolution, to generate the pseudo-observables
 
     smearing: bool
         Whether to smear the chamber signal or not
+
+    make_noise: bool
+        Whether to add random noise or have noise disappear
 
     plot: bool
         Whether to output various plots of the detector and energy
@@ -58,6 +61,7 @@ class Detector:
                  noise=0.,
                  distribution="binomial",
                  smearing=True,
+                 make_noise = True,
                  plot=False):
 
         self.n_chambers = n_chambers
@@ -69,6 +73,7 @@ class Detector:
         self.smearing = smearing
         self.plot = plot
         self.distribution = distribution
+        self.make_noise = make_noise
 
     def generate_true_energy_losses(self, energies):
         '''This function should generate the true energy losses in each chamber
@@ -131,9 +136,9 @@ class Detector:
                     energy = energy - lost_energy
 
                     # Get the chamber it happened in
-                    chamber_number = np.floor(total_distance)
+                    chamber_number = int(np.floor(total_distance))
 
-                    if energy >= 0.0:
+                    if energy >= 0.0 and chamber_number <= self.n_chambers - 1:
                         true_hits[particle_number][chamber_number] = lost_energy
 
             return true_hits
@@ -156,12 +161,12 @@ class Detector:
         '''
 
         noise_hits = np.zeros(shape=(n_events, self.n_chambers))
-
-        for event_number, event in enumerate(noise_hits):
-            noise_distribution = normal(loc=self.noise, size=self.n_chambers)
-            zero_threshold = noise_distribution < 0.0
-            noise_distribution[zero_threshold] = 0.0
-            noise_hits[event_number] = noise_distribution
+        if self.make_noise:
+            for event_number, event in enumerate(noise_hits):
+                noise_distribution = normal(loc=self.noise, size=self.n_chambers)
+                zero_threshold = noise_distribution < 0.0
+                noise_distribution[zero_threshold] = 0.0
+                noise_hits[event_number] = noise_distribution
 
         return noise_hits
 
@@ -247,20 +252,31 @@ class Detector:
         -------
         Nothing. Displays multiple plots
         '''
-        plt.scatter(true_hits[1], signal[1])
+
+        plt.hist(energies, 40)
+        plt.title("Particle Energies")
+        plt.show()
+
+        figure = plt.figure()
+
+        ax = figure.add_subplot(111)
+
+        for index in range(energies.shape[0]):
+            ax.scatter(true_hits[index], signal[index])
+
+        #plt.scatter(true_hits[1], signal[1])
         plt.xlabel("True Energy")
         plt.ylabel("Signal")
         plt.show()
 
-        plt.hist(signal[1] / true_hits[1], 20, normed=True)
-        plt.title("Signal / True Hits")
-        plt.show()
+        if self.make_noise:
+            plt.hist(noise_hits, 10)
+            plt.title("Noise Distribution Per Chamber")
+            plt.show()
 
 
 # Try it out
 energies = normal(loc=10000.0, scale=5000, size=1000)
-count, bins, ignored = plt.hist(energies, 30, normed=True)
-plt.show()
 
-detector = Detector(distribution='binomial', plot=True)
+detector = Detector(distribution='gaussian', energy_loss='random', plot=True)
 detector.simulate(energies)
