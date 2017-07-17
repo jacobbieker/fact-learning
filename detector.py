@@ -155,29 +155,14 @@ class Detector:
             Array containing the amount of lost energy in each chamber
         '''
 
-        # Idea: The self.noise parameter sets the mean + variance? or max? in each detector chamber
-        # Supposed to be expected signal, so can be around there.
-        # Currently, detectors have a resolution of 1.0, the entire detector is essentially 1 pixel
-        # So max should just shift it up by the expected amount?
-        # And if there are more than 1 pixel, it should be randomly distributed between them all
-        # So, based off the self.resolution_chamber, noise gets distributed into that many bins
-        # but that doesn't fit in with the noise_hits shape, since the shape is not three dimensional
-
         noise_hits = np.zeros(shape=(n_events.shape, self.n_chambers))
 
-        # If we go with a higher resolution means that the noise is randomly distributed around the detector...
+        for event_number, event in enumerate(noise_hits):
+            noise_distribution = normal(loc=self.noise, size=self.n_chambers)
+            #TODO: Should it be truncated at 0? Or allowed to go negative? Any value later is set to 0 if < 0.0
+            noise_hits[event_number] = noise_distribution
 
-        for event in n_events:
-            for chamber in range(self.n_chambers):
-                noise_level = self.noise
-                # If using resolution as different parts, one more for loop under this line
-                location_noise = np.random.uniform(high=noise_level)
-                noise_hits[event][chamber] = location_noise
-                # If using resolution to split chambers, here is where the subtract leaves the rest of the noise level
-                # to be distributed to the other chambers, last one getting the remainder
-                noise_level -= location_noise
-
-        raise NotImplementedError
+        return noise_hits
 
     def generate_chamber_signal(self, chamber_hits):
         '''This function generate the signal of each chamber. It applies some
