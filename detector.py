@@ -89,7 +89,7 @@ class Detector:
 
         # Need to make sure the mean values are positive from distribution, or just use the means directly
 
-        true_hits = np.zeros(shape=(energies.shape, self.n_chambers))
+        true_hits = np.zeros(shape=(energies.shape[0], self.n_chambers))
 
         # For use in the gamma distribution that is strictly positive
         variance = 1.0
@@ -155,7 +155,7 @@ class Detector:
             Array containing the amount of lost energy in each chamber
         '''
 
-        noise_hits = np.zeros(shape=(n_events.shape, self.n_chambers))
+        noise_hits = np.zeros(shape=(n_events, self.n_chambers))
 
         for event_number, event in enumerate(noise_hits):
             noise_distribution = normal(loc=self.noise, size=self.n_chambers)
@@ -179,7 +179,7 @@ class Detector:
             Signal return by each chamber in photons
         '''
 
-        signal = np.zeros_like(chamber_hits)
+        signal = np.zeros_like(chamber_hits, dtype=np.float32)
 
         for particle_number, chambers in enumerate(chamber_hits):
             for chamber_number, energy_value in enumerate(chambers):
@@ -196,11 +196,14 @@ class Detector:
                 if photons_detected < 0.0:
                     photons_detected = 0.0
                 # Generate the smearing, based on the energy of the particle received, with std 1/root(N) photons
-                if self.smearing:
-                    smear = normal(scale=1.0 / np.sqrt(photons_detected))
-                    smeared_value = photons_detected + smear
+                if photons_detected > 1.0:
+                    if self.smearing:
+                        smear = normal(scale=1.0 / np.sqrt(photons_detected))
+                        smeared_value = photons_detected + smear
+                    else:
+                        smeared_value = photons_detected
                 else:
-                    smeared_value = photons_detected
+                    smeared_value = 0.0
 
                 if smeared_value >= self.threshold_chambers:
                     signal[particle_number][chamber_number] = smeared_value
@@ -243,15 +246,23 @@ class Detector:
         -------
         Nothing. Displays multiple plots
         '''
-        plt.plot(true_hits[1], signal[1])
-        plt.xlabel("True hits")
+        plt.scatter(true_hits[1], signal[1])
+        plt.xlabel("True Energy")
         plt.ylabel("Signal")
         plt.show()
 
-        plt.plot(signal[1] / true_hits[1])
+        plt.scatter(signal[1] / true_hits[1])
         plt.title("Signal / True Hits")
         plt.show()
 
 
         # Plot
         raise NotImplementedError
+
+
+# Try it out
+energies = normal(loc=10000.0, scale=5000, size=1000)
+print(energies)
+print(energies.shape)
+detector = Detector(distribution='gaussian', plot=True)
+detector.simulate(energies)
