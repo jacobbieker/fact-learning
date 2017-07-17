@@ -159,7 +159,8 @@ class Detector:
 
         for event_number, event in enumerate(noise_hits):
             noise_distribution = normal(loc=self.noise, size=self.n_chambers)
-            #TODO: Should it be truncated at 0? Or allowed to go negative? Any value later is set to 0 if < 0.0
+            zero_threshold = noise_distribution < 0.0
+            noise_distribution[zero_threshold] = 0.0
             noise_hits[event_number] = noise_distribution
 
         return noise_hits
@@ -251,18 +252,15 @@ class Detector:
         plt.ylabel("Signal")
         plt.show()
 
-        plt.scatter(signal[1] / true_hits[1])
+        plt.hist(signal[1] / true_hits[1], 20, normed=True)
         plt.title("Signal / True Hits")
         plt.show()
 
 
-        # Plot
-        raise NotImplementedError
-
-
 # Try it out
 energies = normal(loc=10000.0, scale=5000, size=1000)
-print(energies)
-print(energies.shape)
-detector = Detector(distribution='gaussian', plot=True)
+count, bins, ignored = plt.hist(energies, 30, normed=True)
+plt.show()
+
+detector = Detector(distribution='binomial', plot=True)
 detector.simulate(energies)
