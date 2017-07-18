@@ -238,6 +238,38 @@ class Detector:
             self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
         return signal
 
+    def get_response_matrix(self):
+        if self.n_chambers < 2:
+            raise ValueError("Number of Chambers must be larger than 2")
+
+        A = np.zeros((self.n_chambers, self.n_chambers))
+
+        # Now need to determine what epsilon is, based on what?
+        # A is the probability that energy from one will show up
+        # in another bin, so based on the smearing, noise, threshold
+        # and energy deposited
+
+        epsilon = 0.0
+
+        if self.smearing:
+            return 0
+        if self.make_noise:
+            return 0
+        if self.distribution == 'gaussian':
+            return 0
+        elif self.distribution == 'binomial':
+            return 0
+
+        A[0, 0] = 1.-epsilon
+        A[0, 1] = epsilon
+        A[-1, -1] = 1.-epsilon
+        A[-1, -2] = epsilon
+        for i in range(1, self.n_chambers - 1):
+            A[i, i] = 1.-2.*epsilon
+            A[i, i+1] = epsilon
+            A[i, i-1] = epsilon
+        return A
+
     def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
         ''' This function produces various plots from the simulation
 
@@ -256,6 +288,8 @@ class Detector:
 
         plt.hist(energies, 40)
         plt.title("Particle Energies")
+        plt.xlabel("Energy")
+        plt.ylabel("Number of Particles")
         plt.show()
 
         figure = plt.figure()
@@ -316,6 +350,8 @@ class Detector:
         plt.xlabel("Total Energy Deposited per Particle")
         plt.show()
 
+        # Number of events at that energy level for both True and Measured
+
         if self.make_noise:
             plt.hist(noise_hits, 10)
             plt.title("Noise Distribution Per Chamber")
@@ -324,6 +360,14 @@ class Detector:
 
 # Try it out
 energies = normal(loc=1000.0, scale=500, size=1000)
+below_zero = energies <= 5.0
+energies[below_zero] = 1000.0
 
-detector = Detector(distribution='gaussian', energy_loss='const', make_noise=True, smearing=True, resolution_chamber=1., noise=0., plot=True)
+detector = Detector(distribution='gaussian',
+                    energy_loss='random',
+                    make_noise=True,
+                    smearing=True,
+                    resolution_chamber=1.,
+                    noise=0.,
+                    plot=True)
 detector.simulate(energies)
