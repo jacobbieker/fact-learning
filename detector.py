@@ -234,40 +234,43 @@ class Detector:
         noise_hits = self.generate_noise(true_hits.shape[0])
         chamber_hits = true_hits + noise_hits
         signal = self.generate_chamber_signal(chamber_hits)
+        detector_matrix = self.get_response_matrix(true_hits, signal)
         if self.plot:
             self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
         return signal
 
-    def get_response_matrix(self):
+    def get_response_matrix(self, true_hits, signal):
         if self.n_chambers < 2:
             raise ValueError("Number of Chambers must be larger than 2")
 
-        A = np.zeros((self.n_chambers, self.n_chambers))
+        # A = np.zeros((self.n_chambers, self.n_chambers))
 
         # Now need to determine what epsilon is, based on what?
         # A is the probability that energy from one will show up
         # in another bin, so based on the smearing, noise, threshold
         # and energy deposited
 
-        epsilon = 0.0
 
-        if self.smearing:
-            return 0
-        if self.make_noise:
-            return 0
-        if self.distribution == 'gaussian':
-            return 0
-        elif self.distribution == 'binomial':
-            return 0
+        #To get the response matrix, do a 2d histogram of true energy vs measured energy, the historgram
+        # must be normalized at some point, either row or column, or both, or some other way, but must be normalized
+        # Normalized = percentage = probabllilty
 
-        A[0, 0] = 1.-epsilon
-        A[0, 1] = epsilon
-        A[-1, -1] = 1.-epsilon
-        A[-1, -2] = epsilon
-        for i in range(1, self.n_chambers - 1):
-            A[i, i] = 1.-2.*epsilon
-            A[i, i+1] = epsilon
-            A[i, i-1] = epsilon
+        sum_chambers = np.sum(true_hits, axis=1)
+        sum_signal = np.sum(signal, axis=1)
+
+
+        # Detector response matrix: 2d histogram
+        sum_chamber_per_chamber = np.sum(true_hits, axis=0)
+        sum_signal_per_chamber = np.sum(signal, axis=0)
+
+        A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
+        B, xedge, yedge = np.histogram2d(sum_chambers, sum_signal, normed=False)
+        print(A)
+        print(np.sum(A))
+        print(B)
+        print(np.sum(B))
+
+        #TODO: Need to normalize based off the row and the column, possibly both?
         return A
 
     def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
@@ -350,6 +353,28 @@ class Detector:
         plt.xlabel("Total Energy Deposited per Particle")
         plt.show()
 
+        # Detector response matrix: 2d histogram
+        sum_chamber_per_chamber = np.sum(true_hits, axis=0)
+        sum_signal_per_chamber = np.sum(signal, axis=0)
+
+        plt.hist2d(sum_chamber_per_chamber,sum_signal_per_chamber, normed=True)
+        plt.title("Detector Response Matrix for summed per chamber")
+        plt.xlabel("True Energy")
+        plt.ylabel("Measured Energy")
+        plt.show()
+
+        plt.hist2d(sum_chamber_per_chamber,sum_signal_per_chamber, normed=False)
+        plt.title("Detector Response Matrix for summed per chamber (Unnormalized)")
+        plt.xlabel("True Energy")
+        plt.ylabel("Measured Energy")
+        plt.show()
+
+        plt.hist2d(sum_chambers,sum_signal, normed=True)
+        plt.title("Detector Response Matrix for summed per particle")
+        plt.xlabel("True Energy")
+        plt.ylabel("Measured Energy")
+        plt.show()
+
         # Number of events at that energy level for both True and Measured
 
         if self.make_noise:
@@ -359,15 +384,16 @@ class Detector:
 
 
 # Try it out
-energies = normal(loc=1000.0, scale=500, size=1000)
-below_zero = energies <= 5.0
-energies[below_zero] = 1000.0
+energies = 1000.0*np.random.power(0.70, 500)
+#energies = normal(loc=1000.0, scale=500, size=1000)
+below_zero = energies < 0.0
+energies[below_zero] = 1.0
 
 detector = Detector(distribution='gaussian',
-                    energy_loss='random',
+                    energy_loss='const',
                     make_noise=True,
                     smearing=True,
                     resolution_chamber=1.,
                     noise=0.,
-                    plot=True)
+                    plot=False)
 detector.simulate(energies)

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.stats import norm
+from scipy.stats import powerlaw
 
 
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
@@ -36,5 +36,15 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
 def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
 
     u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
-    
+    print("U:\n" + str(u))
+    print("S:\n" + str(s))
+    print("V:\n" + str(v))
     raise NotImplementedError
+
+
+def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+    def LLH(f, data):
+        return np.sum(np.log(f*powerlaw.pdf(data) + (1-f)*powerlaw.pdf(data)))
+    raise NotImplementedError
+
+def determine
