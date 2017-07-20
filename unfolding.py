@@ -5,6 +5,14 @@ from detector import Detector
 
 
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+    """
+
+    :param signal: The detector signal from the detector, shape(n_events, n_chambers)
+    :param true_energy: The true energy distribution of the particles, shape(n_events, n_chambers)
+    :param detector_response_matrix: Detector response matrix, shape(n_chambers, n_chambers)
+    :param num_bins: Number of bins for the histograms
+    :return:
+    """
 
     sum_chamber_per_chamber = np.sum(true_energy, axis=0)
     sum_signal_per_chamber = np.sum(signal, axis=0)
@@ -31,7 +39,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     #print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
     plt.hist(x_vector_unf, bins=num_bins)
-    plt.hist(sum_chamber_per_chamber, bins=np.linspace(min(sum_chamber_per_chamber), max(sum_chamber_per_chamber), 50), normed=False,
+    plt.hist(sum_chamber_per_chamber, bins=np.linspace(min(sum_chamber_per_chamber), max(sum_chamber_per_chamber), num_bins), normed=False,
              label="True Energy", histtype='step')
     plt.title("Number of Particles: " + str(true_energy.shape[0]))
     plt.show()
@@ -47,7 +55,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # raise NotImplementedError
 
 
-energies = 1000.0 * np.random.power(0.70, 500000)
+energies = 1000.0 * np.random.power(0.70, 5000)
 # energies = normal(loc=1000.0, scale=500, size=1000)
 below_zero = energies < 0.0
 energies[below_zero] = 1.0
@@ -77,3 +85,19 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
         return np.sum(np.log(f * powerlaw.pdf(data) + (1 - f) * powerlaw.pdf(data)))
 
     raise NotImplementedError
+
+
+def gradient_descent(x, y, theta, alpha, numIterations):
+    xTrans = x.transpose()
+    for i in range(0, numIterations):
+        hypothesis = np.dot(x, theta)
+        loss = hypothesis - y
+        # avg cost per example (the 2 in 2*m doesn't really matter here.
+        # But to be consistent with the gradient, I include it)
+        cost = np.sum(loss ** 2) / (2 * x.shape[0])
+        print("Iteration %d | Cost: %f" % (i, cost))
+        # avg gradient per example
+        gradient = np.dot(xTrans, loss) / x.shape[0]
+        # update
+        theta = theta - alpha * gradient
+    return theta
