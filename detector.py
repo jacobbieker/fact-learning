@@ -2,6 +2,7 @@ import numpy as np
 from numpy.random import normal, gamma
 import matplotlib.pyplot as plt
 import scipy.stats as stats
+import pprint
 
 
 class Detector:
@@ -237,7 +238,7 @@ class Detector:
         detector_matrix = self.get_response_matrix(true_hits, signal)
         if self.plot:
             self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
-        return signal
+        return signal, true_hits, detector_matrix
 
     def get_response_matrix(self, true_hits, signal):
         if self.n_chambers < 2:
@@ -251,27 +252,43 @@ class Detector:
         # and energy deposited
 
 
-        #To get the response matrix, do a 2d histogram of true energy vs measured energy, the historgram
+        # To get the response matrix, do a 2d histogram of true energy vs measured energy, the historgram
         # must be normalized at some point, either row or column, or both, or some other way, but must be normalized
         # Normalized = percentage = probabllilty
 
         sum_chambers = np.sum(true_hits, axis=1)
         sum_signal = np.sum(signal, axis=1)
 
-
         # Detector response matrix: 2d histogram
         sum_chamber_per_chamber = np.sum(true_hits, axis=0)
         sum_signal_per_chamber = np.sum(signal, axis=0)
 
-        A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
-        B, xedge, yedge = np.histogram2d(sum_chambers, sum_signal, normed=False)
-        print(A)
-        print(np.sum(A))
-        print(B)
-        print(np.sum(B))
+        A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False,
+                                         bins=self.n_chambers)
+        #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
+        B, xedge, yedge = np.histogram2d(sum_chambers, sum_signal, normed=False, bins=self.n_chambers)
 
-        #TODO: Need to normalize based off the row and the column, possibly both?
-        return A
+        # Try to correct for 0 values by putting the value of 1.0 there
+        print(A.shape)
+        for i in range(self.n_chambers)[1:-1]:
+            if A[i, i] == 0.0:
+                A[i, i] = 1 * 10 ^ (-1)
+
+        plt.imshow(A, interpolation="nearest", origin="upper")
+        plt.colorbar()
+        plt.show()
+
+        # TODO: Need to normalize based off the row and the column, possibly both?
+
+        # Normalize based off of the row
+
+        A_row_Norm = A / A.sum(axis=1, keepdims=True)
+        # pprint.pprint(A_row_Norm)
+
+        A_column_Norm = A / A.sum(axis=0, keepdims=True)
+        # pprint.pprint(A_column_Norm)
+
+        return A, A_row_Norm, A_column_Norm
 
     def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
         ''' This function produces various plots from the simulation
@@ -302,7 +319,7 @@ class Detector:
         for index in range(energies.shape[0]):
             ax.scatter(true_hits[index], signal[index])
 
-        #plt.scatter(true_hits[1], signal[1])
+        # plt.scatter(true_hits[1], signal[1])
         plt.xlabel("True Energy")
         plt.ylabel("Signal (Number of Photons)")
         plt.title("True Energy vs Signal for each Chamber and each Event")
@@ -313,8 +330,8 @@ class Detector:
         ax = figure.add_subplot(111)
 
         for index in range(energies.shape[0]):
-            ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
-            #ax.scatter(np.arange(0, self.n_chambers), signal[index])
+            ax.scatter(np.arange(0, self.n_chambers), true_hits[index])
+            # ax.scatter(np.arange(0, self.n_chambers), signal[index])
         plt.title("True Energy per Chamber per Event")
         plt.ylabel("Energy Value")
         plt.xlabel("Chamber Number")
@@ -325,7 +342,7 @@ class Detector:
         ax = figure.add_subplot(111)
 
         for index in range(energies.shape[0]):
-            #ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
+            # ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
             ax.scatter(np.arange(0, self.n_chambers), signal[index])
         plt.title("Signal per Chamber per Event")
         plt.ylabel("Number of Photons")
@@ -344,9 +361,9 @@ class Detector:
         plt.show()
 
         plt.hist(sum_chambers, bins=np.linspace(min(sum_chambers), max(sum_chambers), 50), normed=True,
-                           label="True Energy")
+                 label="True Energy")
         plt.hist(sum_signal, bins=np.linspace(min(sum_signal), max(sum_signal), 50),
-                           histtype='step', normed=True, label="Measured Photons")
+                 histtype='step', normed=True, label="Measured Photons")
         plt.legend(loc='best')
         plt.title("True Energy Distribution vs Measured Distribution")
         plt.ylabel("Normalized Value")
@@ -357,19 +374,19 @@ class Detector:
         sum_chamber_per_chamber = np.sum(true_hits, axis=0)
         sum_signal_per_chamber = np.sum(signal, axis=0)
 
-        plt.hist2d(sum_chamber_per_chamber,sum_signal_per_chamber, normed=True)
+        plt.hist2d(sum_chamber_per_chamber, sum_signal_per_chamber, normed=True)
         plt.title("Detector Response Matrix for summed per chamber")
         plt.xlabel("True Energy")
         plt.ylabel("Measured Energy")
         plt.show()
 
-        plt.hist2d(sum_chamber_per_chamber,sum_signal_per_chamber, normed=False)
+        plt.hist2d(sum_chamber_per_chamber, sum_signal_per_chamber, normed=False)
         plt.title("Detector Response Matrix for summed per chamber (Unnormalized)")
         plt.xlabel("True Energy")
         plt.ylabel("Measured Energy")
         plt.show()
 
-        plt.hist2d(sum_chambers,sum_signal, normed=True)
+        plt.hist2d(sum_chambers, sum_signal, normed=True)
         plt.title("Detector Response Matrix for summed per particle")
         plt.xlabel("True Energy")
         plt.ylabel("Measured Energy")
@@ -383,17 +400,18 @@ class Detector:
             plt.show()
 
 
-# Try it out
-energies = 1000.0*np.random.power(0.70, 500)
-#energies = normal(loc=1000.0, scale=500, size=1000)
-below_zero = energies < 0.0
-energies[below_zero] = 1.0
+if __name__ == "__main__":
+    # Try it out
+    energies = 1000.0 * np.random.power(0.70, 500)
+    # energies = normal(loc=1000.0, scale=500, size=1000)
+    below_zero = energies < 0.0
+    energies[below_zero] = 1.0
 
-detector = Detector(distribution='gaussian',
-                    energy_loss='const',
-                    make_noise=True,
-                    smearing=True,
-                    resolution_chamber=1.,
-                    noise=0.,
-                    plot=False)
-detector.simulate(energies)
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=True,
+                        smearing=True,
+                        resolution_chamber=1.,
+                        noise=0.,
+                        plot=False)
+    detector.simulate(energies)
