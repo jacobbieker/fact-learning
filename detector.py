@@ -235,44 +235,35 @@ class Detector:
         noise_hits = self.generate_noise(true_hits.shape[0])
         chamber_hits = true_hits + noise_hits
         signal = self.generate_chamber_signal(chamber_hits)
-        detector_matrix = self.get_response_matrix(true_hits, signal)
+        detector_matrix = self.get_response_matrix(energies, signal)
         if self.plot:
             self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
-        return signal, true_hits, detector_matrix
+        return signal, true_hits, energies, detector_matrix
 
-    def get_response_matrix(self, true_hits, signal):
+    def get_response_matrix(self, original_energy_distribution, signal):
         if self.n_chambers < 2:
             raise ValueError("Number of Chambers must be larger than 2")
 
         # A = np.zeros((self.n_chambers, self.n_chambers))
 
-        # Now need to determine what epsilon is, based on what?
-        # A is the probability that energy from one will show up
-        # in another bin, so based on the smearing, noise, threshold
-        # and energy deposited
 
-
-        # To get the response matrix, do a 2d histogram of true energy vs measured energy, the historgram
+        # To get the response matrix, do a 2d histogram of Original energy distribution vs measured energy, the historgram
         # must be normalized at some point, either row or column, or both, or some other way, but must be normalized
         # Normalized = percentage = probabllilty
-
-        sum_chambers = np.sum(true_hits, axis=1)
+        # Make a table, per particle: ID | Observable | True Energy and make 2D histogram of Observable vs True Energy
+        print(original_energy_distribution)
+        sum_true_energy_per_particle = original_energy_distribution
         sum_signal = np.sum(signal, axis=1)
 
-        # Detector response matrix: 2d histogram
-        sum_chamber_per_chamber = np.sum(true_hits, axis=0)
-        sum_signal_per_chamber = np.sum(signal, axis=0)
-
-        A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False,
-                                         bins=self.n_chambers)
+        #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False,
+        #                                 bins=self.n_chambers)
         #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
-        B, xedge, yedge = np.histogram2d(sum_chambers, sum_signal, normed=False, bins=self.n_chambers)
+        A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=True, bins=10)
 
         # Try to correct for 0 values by putting the value of 1.0 there
-        print(A.shape)
-        for i in range(self.n_chambers)[1:-1]:
-            if A[i, i] == 0.0:
-                A[i, i] = 1 * 10 ^ (-1)
+        #for i in range(self.n_chambers)[1:-1]:
+        #    if A[i, i] == 0.0:
+        #        A[i, i] = 1 * 10 ^ (-5)
 
         plt.imshow(A, interpolation="nearest", origin="upper")
         plt.colorbar()

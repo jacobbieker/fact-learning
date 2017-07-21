@@ -47,7 +47,7 @@ Tasks
 
 				- Investigate the impact of regularization via singular cut-off (maybe also the effect of a dampening of small eigenvalues**)
 
-		3. Unfolding via LLH fit:
+		3. Unfolding via LLH (Log-LiklieHood) fit:
 				- Implement the LLH, gradient, Hesse-Matrix without regularization and try to find the minima with a self implemented gradient descent
 
 				- Use the implemented LLH (gradient, Hesse-Matrix) and try to solve it with scipy.optimize.minimize
