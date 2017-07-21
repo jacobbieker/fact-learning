@@ -11,13 +11,21 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
 
     # x_vector =
     detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
-
-    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
-    plt.hist(y_vector, bins=num_bins, label="Y Vector")
-    plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=True,
-             label="True Energy")
+    plt.show()
+    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix.shape[0] + 1))
+    print(y_vector)
+    plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
+    plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
+             label="True Energy", histtype='step')
+    plt.hist(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
+             label="Summed Signal Energy", histtype='step')
+    # Problem is that it is already binned, so this is just binning it again. Still not sure why it gets so large
+    # But for it being small, probably because its a bin of bins, so that's why its at 1 or 4 or things like that
     plt.title("True Energy vs Y_Vector")
     plt.legend(loc='best')
+    plt.show()
+    print(len(y_vector[0]))
+
     plt.show()
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_matrix)
