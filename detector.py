@@ -240,7 +240,7 @@ class Detector:
             self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
         return signal, true_hits, energies, detector_matrix
 
-    def get_response_matrix(self, original_energy_distribution, signal):
+    def get_response_matrix(self, original_energy_distribution, signal, num_bins=50):
         if self.n_chambers < 2:
             raise ValueError("Number of Chambers must be larger than 2")
 
@@ -258,18 +258,7 @@ class Detector:
         #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False,
         #                                 bins=self.n_chambers)
         #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
-        A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=True, bins=10)
-
-        # Try to correct for 0 values by putting the value of 1.0 there
-        #for i in range(self.n_chambers)[1:-1]:
-        #    if A[i, i] == 0.0:
-        #        A[i, i] = 1 * 10 ^ (-5)
-
-        plt.imshow(A, interpolation="nearest", origin="upper")
-        plt.colorbar()
-        plt.show()
-
-        # TODO: Need to normalize based off the row and the column, possibly both?
+        A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=False, bins=num_bins)
 
         # Normalize based off of the row
 
@@ -278,6 +267,29 @@ class Detector:
 
         A_column_Norm = A / A.sum(axis=0, keepdims=True)
         # pprint.pprint(A_column_Norm)
+
+        plt.imshow(A, interpolation="nearest", origin="upper")
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.colorbar()
+        plt.title("Detector Response Matrix Raw")
+        plt.show()
+
+        plt.imshow(A_column_Norm, interpolation="nearest", origin="upper")
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.colorbar()
+        plt.title("Detector Response Matrix Column Norm")
+        plt.show()
+
+        plt.imshow(A_row_Norm, interpolation="nearest", origin="upper")
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.colorbar()
+        plt.title("Detector Response Matrix Row Norm")
+        plt.show()
+
+        # TODO: Need to normalize based off the column to equal 1
 
         return A, A_row_Norm, A_column_Norm
 

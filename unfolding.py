@@ -6,13 +6,13 @@ import numdifftools as nd
 from pprint import pprint
 
 
-def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=10):
+def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):
     sum_signal_per_chamber = np.sum(signal, axis=1)
 
     # x_vector =
     detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
-    plt.show()
-    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix.shape[0] + 1))
+    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix.shape[0]))
+    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
     print(y_vector)
     plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
@@ -23,14 +23,21 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # But for it being small, probably because its a bin of bins, so that's why its at 1 or 4 or things like that
     plt.title("True Energy vs Y_Vector")
     plt.legend(loc='best')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.show()
     print(len(y_vector[0]))
 
-    plt.show()
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_matrix)
 
+    #Check if its the identity
+    print(str(np.dot(inv_detector_response_matrix,detector_matrix)))
+    # Not giving the identity matrix
+
     x_vector_unf = np.dot(inv_detector_response_matrix, y_vector[0])
+
+    print("Unfolded Size:\n", str(len(x_vector_unf)))
 
     # Error propagation
     V_y = np.diag(y_vector[0])
@@ -41,13 +48,17 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
     # Need to compare to underlying PDF, which can just be the counts
     # TODO: Change x_vector to the underlying distribution (either from Detector class, or find here)
-    # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+    #print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
     plt.hist(x_vector_unf, bins=num_bins, label="Unfolded Energy")
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
              label="True Energy", histtype='step')
+    y_values = np.histogram(x_vector_unf, bins=len(x_vector_unf))
+    #plt.errorbar(x_vector_unf, y=y_values[0], yerr=sigma_x_unf)
     plt.title("Number of Particles: " + str(true_energy.shape[0]))
     plt.legend(loc='best')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.show()
 
     # plt.hist(bin_center, bins=num_bins, weights=x_vector, label='Underlying Distribution', histtype='step')
@@ -56,9 +67,47 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # plt.xlabel(r'True / Measured Value $x$')
     # plt.ylabel(r'# Events')
 
+    # So current problems are that as teh number of events goes up, the unfolded amount of energy increases for the final
+    # result. Like, instead of increasing the amount of counts for energies at 1000, it increaseas the total energy, but
+    # Only has a few particles in each spot. Maybe another issue with binning? Or my unfolding is really that bad, when
+    # taken from what Mathis gave me. Doesn't make sense, some stupid thing I'm doing is messing this up.
+
     return
 
     # raise NotImplementedError
+
+
+def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+    u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
+    print("U:\n" + str(u))
+    print("S:\n" + str(s))
+    print("V:\n" + str(v))
+    #plt.imshow(s, interpolation="nearest", origin="upper")
+    #plt.colorbar()
+    #plt.title("S Matrix")
+    #plt.show()
+    raise NotImplementedError
+
+
+def test_unfolding(true_energy, detector_response_matrix, num_bins=20):
+    detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
+    return
+
+
+def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+    # If we need the Hessian, the Numdifftools should give it to us with this
+
+    # Pretty sure should only need the response matrix Hessian, since that gives the curvature of the probabilities
+    # that a given energy is in the correct bucket, so using the gradient descent, descend down the probability curvature
+    # to get the most likely true distribution based off the measured values.
+    # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
+
+    hessian_detector = nd.Hessian(detector_response_matrix)
+
+    def LLH(f, data):
+        return np.sum(np.log(f * powerlaw.pdf(data) + (1 - f) * powerlaw.pdf(data)))
+
+    raise NotImplementedError
 
 
 energies = 1000.0 * np.random.power(0.70, 5000)
@@ -84,28 +133,6 @@ detector_test = Detector(distribution='gaussian',
 
 test_signal, test_true_hits, test_energies, test_detector_matrix = detector_test.simulate(energies)
 signal, true_hits, energies, detector_matrix = detector.simulate(energies)
+#svd_unfolding(test_signal, energies, detector_matrix)
 matrix_inverse_unfolding(test_signal, energies, detector_matrix)
 
-
-def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
-    u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
-    print("U:\n" + str(u))
-    print("S:\n" + str(s))
-    print("V:\n" + str(v))
-    raise NotImplementedError
-
-
-def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
-    # If we need the Hessian, the Numdifftools should give it to us with this
-
-    # Pretty sure should only need the response matrix Hessian, since that gives the curvature of the probabilities
-    # that a given energy is in the correct bucket, so using the gradient descent, descend down the probability curvature
-    # to get the most likely true distribution based off the measured values.
-    # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
-
-    hessian_detector = nd.Hessian(detector_response_matrix)
-
-    def LLH(f, data):
-        return np.sum(np.log(f * powerlaw.pdf(data) + (1 - f) * powerlaw.pdf(data)))
-
-    raise NotImplementedError
