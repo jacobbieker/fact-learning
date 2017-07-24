@@ -15,7 +15,6 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     :param unfolding_error: The error in the unfolding, V_x
     :return:
     """
-
     inv_detector_matrix = np.linalg.inv(detector_matrix)
     eigen_vals, eigen_vecs = np.linalg.eig(detector_matrix)
     inv_eigen_vals, inv_eigen_vecs = np.linalg.eig(inv_detector_matrix)
@@ -25,12 +24,20 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     # Order. So need to sort eigenvalues and put the array in a square matrix
 
     U = eigen_vecs
-    U_T = U.T
     eigen_vals = np.absolute(eigen_vals)
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
     D = np.diag(eigen_vals)
+    kappa = max(eigen_vals)/min(eigen_vals)
+    print("Kappa:\n", str(kappa))
 
+    sum_signal_per_chamber = np.sum(signal, axis=1) # The x value
+    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
+    x_vector_true = np.histogram(true_energy, bins=detector_matrix.shape[0])
+    print("Stop")
+    c = np.dot(x_vector_true[0], U.T)
+    b = np.dot(y_vector[0], U.T)
+    d_b = np.dot(D, b)
 
 
     raise NotImplementedError
@@ -40,7 +47,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     sum_signal_per_chamber = np.sum(signal, axis=1)
 
     # x_vector =
-    detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
+    detector_matrix_col = detector_response_matrix
     y_vector = np.histogram(sum_signal_per_chamber,
                             bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber),
                                              detector_matrix_col.shape[0]))
@@ -85,7 +92,6 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
 
     # plt.hist(x_vector_unf, bins=num_bins, label="Unfolded Energy")
     plt.bar(y_vector[1][:-1], x_vector_unf, width=y_vector[1][1:], label="Unfolded Energy")
-    plt.bar()
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
              label="True Energy", histtype='step')
     y_values = np.histogram(x_vector_unf, bins=len(x_vector_unf))
@@ -127,7 +133,6 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
 
 
 def test_unfolding(true_energy, detector_response_matrix, num_bins=20):
-    detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
     detector_matrix_col = np.eye(num_bins)
     print(detector_matrix_col)
     y_vector = np.histogram(true_energy, bins=num_bins)
@@ -193,6 +198,7 @@ detector_test = Detector(distribution='gaussian',
 
 test_signal, test_true_hits, test_energies, test_detector_matrix = detector_test.simulate(energies)
 signal, true_hits, energies, detector_matrix = detector.simulate(energies)
-test_unfolding(energies, detector_matrix, num_bins=15)
+eigenvalue_cutoff(signal, energies, detector_matrix, 0.0)
+#test_unfolding(energies, detector_matrix, num_bins=15)
 # svd_unfolding(test_signal, energies, detector_matrix)
 matrix_inverse_unfolding(test_signal, energies, detector_matrix, num_bins=15)

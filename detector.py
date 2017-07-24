@@ -291,7 +291,7 @@ class Detector:
 
         # TODO: Need to normalize based off the column to equal 1
 
-        return A, A_row_Norm, A_column_Norm
+        return A_column_Norm
 
     def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
         ''' This function produces various plots from the simulation
