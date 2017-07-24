@@ -6,18 +6,51 @@ import numdifftools as nd
 from pprint import pprint
 
 
+def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
+    """
+    Remove the lower eigenvalues that fall below the unfolding error, to smooth out the result
+    :param signal: The signal from the detector
+    :param true_energy: The true energy spectrum
+    :param detector_matrix: The detector response matrix
+    :param unfolding_error: The error in the unfolding, V_x
+    :return:
+    """
+
+    inv_detector_matrix = np.linalg.inv(detector_matrix)
+    eigen_vals, eigen_vecs = np.linalg.eig(detector_matrix)
+    inv_eigen_vals, inv_eigen_vecs = np.linalg.eig(inv_detector_matrix)
+
+    # Here, need to make the UDU^T set of matricies. the U is the eigenvectors of A, the response matrix
+    # And D is the diagnol matrix with the members of the diagonal being the eigenvalues of A in decreasing
+    # Order. So need to sort eigenvalues and put the array in a square matrix
+
+    U = eigen_vecs
+    U_T = U.T
+    eigen_vals = np.absolute(eigen_vals)
+    sorting = np.argsort(eigen_vals)[::-1]
+    eigen_vals = eigen_vals[sorting]
+    D = np.diag(eigen_vals)
+
+
+
+    raise NotImplementedError
+
+
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):
     sum_signal_per_chamber = np.sum(signal, axis=1)
 
     # x_vector =
     detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
-    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix_col.shape[0]))
-    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
+    y_vector = np.histogram(sum_signal_per_chamber,
+                            bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber),
+                                             detector_matrix_col.shape[0]))
+    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix_col.shape[0])
     print(y_vector)
     plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
              label="True Energy", histtype='step')
-    plt.hist(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
+    plt.hist(sum_signal_per_chamber,
+             bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
              label="Summed Signal Energy", histtype='step')
     # Problem is that it is already binned, so this is just binning it again. Still not sure why it gets so large
     # But for it being small, probably because its a bin of bins, so that's why its at 1 or 4 or things like that
@@ -31,7 +64,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_matrix_col)
 
-    #Check if its the identity
+    # Check if its the identity
     print(np.allclose(np.dot(inv_detector_response_matrix, detector_matrix_col), np.eye(detector_matrix_col.shape[0])))
     # Gives the correct response now, wasn't before
 
@@ -48,17 +81,19 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
     # Need to compare to underlying PDF, which can just be the counts
     # TODO: Change x_vector to the underlying distribution (either from Detector class, or find here)
-    #print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+    # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
-    plt.hist(x_vector_unf, bins=num_bins, label="Unfolded Energy")
+    # plt.hist(x_vector_unf, bins=num_bins, label="Unfolded Energy")
+    plt.bar(y_vector[1][:-1], x_vector_unf, width=y_vector[1][1:], label="Unfolded Energy")
+    plt.bar()
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
              label="True Energy", histtype='step')
     y_values = np.histogram(x_vector_unf, bins=len(x_vector_unf))
-    #plt.errorbar(x_vector_unf, y=y_values[0], yerr=sigma_x_unf)
+    # plt.errorbar(x_vector_unf, y=y_values[0], yerr=sigma_x_unf)
     plt.title("Number of Particles: " + str(true_energy.shape[0]))
     plt.legend(loc='best')
-    plt.xscale('log')
-    plt.yscale('log')
+    # plt.xscale('log')
+    # plt.yscale('log')
     plt.show()
 
     # plt.hist(bin_center, bins=num_bins, weights=x_vector, label='Underlying Distribution', histtype='step')
@@ -82,12 +117,12 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     print("U:\n" + str(u))
     print("S:\n" + str(s))
     print("V:\n" + str(v))
-    #plt.imshow(s, interpolation="nearest", origin="upper")
-    #plt.colorbar()
-    #plt.title("S Matrix")
-    #plt.xscale('log')
-    #plt.yscale('log')
-    #plt.show()
+    # plt.imshow(s, interpolation="nearest", origin="upper")
+    # plt.colorbar()
+    # plt.title("S Matrix")
+    # plt.xscale('log')
+    # plt.yscale('log')
+    # plt.show()
     raise NotImplementedError
 
 
@@ -108,12 +143,13 @@ def test_unfolding(true_energy, detector_response_matrix, num_bins=20):
     plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
     plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
              label="True Energy", histtype='step')
-    plt.bar(y_vector[1][:-1], sum_signal_per_chamber, width=y_vector[1][1:], label="Unfolded Energy") #bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
-             #label="Summed Signal Energy", histtype='step')
+    plt.bar(y_vector[1][:-1], sum_signal_per_chamber, width=y_vector[1][1:],
+            label="Unfolded Energy")  # bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
+    # label="Summed Signal Energy", histtype='step')
     plt.title("True Energy vs Y_Vector")
     plt.legend(loc='best')
-    #plt.xscale('log')
-    #plt.yscale('log')
+    plt.xscale('log')
+    plt.yscale('log')
     plt.show()
     raise NotImplementedError
 
@@ -141,16 +177,16 @@ energies[below_zero] = 1.0
 
 detector = Detector(distribution='gaussian',
                     energy_loss='random',
-                    make_noise=True,
-                    smearing=True,
+                    make_noise=False,
+                    smearing=False,
                     resolution_chamber=1.,
                     noise=0.,
                     plot=False)
 
 detector_test = Detector(distribution='gaussian',
                          energy_loss='random',
-                         make_noise=True,
-                         smearing=True,
+                         make_noise=False,
+                         smearing=False,
                          resolution_chamber=1.,
                          noise=0.,
                          plot=False)
@@ -158,6 +194,5 @@ detector_test = Detector(distribution='gaussian',
 test_signal, test_true_hits, test_energies, test_detector_matrix = detector_test.simulate(energies)
 signal, true_hits, energies, detector_matrix = detector.simulate(energies)
 test_unfolding(energies, detector_matrix, num_bins=15)
-#svd_unfolding(test_signal, energies, detector_matrix)
-matrix_inverse_unfolding(test_signal, energies, detector_matrix)
-
+# svd_unfolding(test_signal, energies, detector_matrix)
+matrix_inverse_unfolding(test_signal, energies, detector_matrix, num_bins=15)
