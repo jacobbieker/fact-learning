@@ -273,14 +273,14 @@ class Detector:
         plt.yscale('log')
         plt.colorbar()
         plt.title("Detector Response Matrix Raw")
-        plt.show()
+   #     plt.show()
 
         plt.imshow(A_column_Norm, interpolation="nearest", origin="upper")
         plt.xscale('log')
         plt.yscale('log')
         plt.colorbar()
         plt.title("Detector Response Matrix Column Norm")
-        plt.show()
+     #   plt.show()
 
         plt.imshow(A_row_Norm, interpolation="nearest", origin="upper")
         plt.xscale('log')

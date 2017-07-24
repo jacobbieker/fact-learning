@@ -11,7 +11,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
 
     # x_vector =
     detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
-    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix.shape[0]))
+    y_vector = np.histogram(sum_signal_per_chamber, bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), detector_matrix_col.shape[0]))
     y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
     print(y_vector)
     plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
@@ -29,11 +29,11 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     print(len(y_vector[0]))
 
     # Get the inverse of the detector response matrix
-    inv_detector_response_matrix = np.linalg.inv(detector_matrix)
+    inv_detector_response_matrix = np.linalg.inv(detector_matrix_col)
 
     #Check if its the identity
-    print(str(np.dot(inv_detector_response_matrix,detector_matrix)))
-    # Not giving the identity matrix
+    print(np.allclose(np.dot(inv_detector_response_matrix, detector_matrix_col), np.eye(detector_matrix_col.shape[0])))
+    # Gives the correct response now, wasn't before
 
     x_vector_unf = np.dot(inv_detector_response_matrix, y_vector[0])
 
@@ -85,13 +85,37 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     #plt.imshow(s, interpolation="nearest", origin="upper")
     #plt.colorbar()
     #plt.title("S Matrix")
+    #plt.xscale('log')
+    #plt.yscale('log')
     #plt.show()
     raise NotImplementedError
 
 
 def test_unfolding(true_energy, detector_response_matrix, num_bins=20):
     detector_matrix, detector_matrix_col, detector_matrix_row = detector_response_matrix
-    return
+    detector_matrix_col = np.eye(num_bins)
+    print(detector_matrix_col)
+    y_vector = np.histogram(true_energy, bins=num_bins)
+    inv_detector_matrix = np.linalg.inv(detector_matrix_col)
+    print(inv_detector_matrix)
+    sum_signal_per_chamber = np.dot(inv_detector_matrix, y_vector[0])
+    print(sum_signal_per_chamber == y_vector[0])
+    eigen_vals, eigen_vecs = np.linalg.eig(detector_matrix_col)
+    inv_eigen_vals, inv_eigen_vecs = np.linalg.eig(inv_detector_matrix)
+    print(len(y_vector[0]))
+    print(len(sum_signal_per_chamber))
+    sum_signal_per_chamber = np.ndarray.astype(sum_signal_per_chamber, np.int64)
+    plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
+    plt.hist(true_energy, bins=np.linspace(min(true_energy), max(true_energy), num_bins), normed=False,
+             label="True Energy", histtype='step')
+    plt.bar(y_vector[1][:-1], sum_signal_per_chamber, width=y_vector[1][1:], label="Unfolded Energy") #bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber), num_bins), normed=False,
+             #label="Summed Signal Energy", histtype='step')
+    plt.title("True Energy vs Y_Vector")
+    plt.legend(loc='best')
+    #plt.xscale('log')
+    #plt.yscale('log')
+    plt.show()
+    raise NotImplementedError
 
 
 def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
@@ -133,6 +157,7 @@ detector_test = Detector(distribution='gaussian',
 
 test_signal, test_true_hits, test_energies, test_detector_matrix = detector_test.simulate(energies)
 signal, true_hits, energies, detector_matrix = detector.simulate(energies)
+test_unfolding(energies, detector_matrix, num_bins=15)
 #svd_unfolding(test_signal, energies, detector_matrix)
 matrix_inverse_unfolding(test_signal, energies, detector_matrix)
 
