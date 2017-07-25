@@ -30,3 +30,29 @@ def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20):
     plt.xscale('log')
     plt.yscale('log')
     plt.show()
+
+
+def plot_eigenvalues(eigenvalues, eigenvectors, n_dims):
+    eigen_vals = np.absolute(eigenvalues)
+    sorting = np.argsort(eigen_vals)[::-1]
+    eigen_vals = eigen_vals[sorting]
+    kappa = max(eigen_vals)/min(eigen_vals)
+    inv_eigen_vals = 1/eigen_vals
+    highest_amp = np.max(np.absolute(inv_eigen_vals))
+
+
+    plt.bar(range(n_dims), inv_eigen_vals, label=u'$\kappa$ = %.2f $\lambda_{%d}$ = %.2f' % (kappa, n_dims, highest_amp))
+    plt.xlabel('Index $j$')
+    plt.ylabel('Value of inverse Eigenvalue')
+    plt.title('Ordered Inverse Eigenvalues')
+    plt.legend(loc='best')
+    plt.show()
+
+    U = eigenvectors[:, sorting]
+    f, axes = plt.subplots(U.shape[1], sharex=True, sharey=True, figsize=(50, 4*U.shape[1]))
+    for i, ax_i in enumerate(axes):
+        ax_i.bar(range(n_dims), U[:, i], color='C1', label='Eigenvector %d' % i)
+        #ax_i.set_axis_off()
+        ax_i.set_title('Shape Eigenvectors {}'.format(i))
+        ax_i.set_xlabel('Index $j$')
+    plt.show()

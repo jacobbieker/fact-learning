@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import powerlaw
 import numdifftools as nd
+from evaluate_unfolding import plot_eigenvalues
 
 
 def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
@@ -15,7 +16,6 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     inv_detector_matrix = np.linalg.inv(detector_matrix)
     eigen_vals, eigen_vecs = np.linalg.eig(detector_matrix)
     inv_eigen_vals, inv_eigen_vecs = np.linalg.eig(inv_detector_matrix)
-
     # Here, need to make the UDU^T set of matricies. the U is the eigenvectors of A, the response matrix
     # And D is the diagnol matrix with the members of the diagonal being the eigenvalues of A in decreasing
     # Order. So need to sort eigenvalues and put the array in a square matrix
@@ -31,12 +31,18 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     sum_signal_per_chamber = np.sum(signal, axis=1) # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
     x_vector_true = np.histogram(true_energy, bins=detector_matrix.shape[0])
-    print("Stop")
-    c = np.dot(x_vector_true[0], U.T)
-    b = np.dot(y_vector[0], U.T)
+    c = np.dot(U.T, y_vector[0])
+    b = np.dot(U.T, x_vector_true[0])
     d_b = np.dot(D, b)
 
-    raise NotImplementedError
+    # Now to do the unfolding by dividing coefficients by the eigenvalues in D to get b_j
+    b_j = np.zeros_like(c)
+    for j, coefficient in enumerate(c):
+        b_j[j] = coefficient / D[j,j]
+
+    unfolded_x = np.dot(U, b_j)
+
+    return eigen_vals, eigen_vecs
 
 
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):

@@ -30,14 +30,5 @@ def test_detector(random_state=None, plot=False):
     assert all(np.isclose(np.sum(detector_matrix, axis=0), 1.))
 
 
-def test_detector_response_matrix_unfolding(random_state=None, plot=False):
-    if not isinstance(random_state, np.random.RandomState):
-        random_state = np.random.RandomState(random_state)
-
-    energies = 1000.0 * random_state.power(0.70, 500)
-    below_zero = energies < 0.0
-    energies[below_zero] = 1.0
-
-
 if __name__ == "__main__":
-    test_detector(1337, plot=True)
+    test_detector(1347, plot=True)
