@@ -1,9 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.stats import powerlaw
-from detector import Detector
 import numdifftools as nd
-from pprint import pprint
 
 
 def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
@@ -43,7 +40,10 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
 
 
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):
-    sum_signal_per_chamber = np.sum(signal, axis=1)
+    if signal.ndim == 2:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+    else:
+        sum_signal_per_chamber = signal
 
     # x_vector =
     y_vector = np.histogram(sum_signal_per_chamber,
