@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.stats import powerlaw
 import numdifftools as nd
-from evaluate_unfolding import plot_eigenvalues
+
+import evaluate_unfolding
 
 
 def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
@@ -41,9 +42,13 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
         # Cutting the number of values in half, just to test it
         if j < (D.shape[0]/2):
             b_j[j] = coefficient / D[j,j]
-
+    print(b_j)
     unfolded_x = np.dot(U, b_j)
     print(unfolded_x)
+
+
+    evaluate_unfolding.plot_unfolded_vs_true()
+
 
     return eigen_vals, eigen_vecs
 
@@ -54,6 +59,9 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
         y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
     else:
         y_vector = [signal, 0]
+
+    x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), detector_response_matrix.shape[0])
+    x_vector = powerlaw.pdf(x_pdf_space, 0.70)
 
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
@@ -69,9 +77,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
 
     print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
     print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
-    # Need to compare to underlying PDF, which can just be the counts
-    # TODO: Change x_vector to the underlying distribution (either from Detector class, or find here)
-    # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+    print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
     return x_vector_unf, sigma_x_unf, V_x_est, V_y
 

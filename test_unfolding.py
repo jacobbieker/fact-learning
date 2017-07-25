@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 from detector import Detector
 from unfolding import matrix_inverse_unfolding, svd_unfolding, llh_unfolding, eigenvalue_cutoff
 import evaluate_unfolding
+import evaluate_detector
 
 
 def test_identity_response_matrix_unfolding(random_state=None, num_bins=20, plot=False):
@@ -76,7 +77,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
 
     energies = 1000.0 * random_state.power(0.70, 500)
     # energies = normal(loc=1000.0, scale=500, size=1000)
-    below_zero = energies < 0.0
+    below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
     detector = Detector(distribution='gaussian',
@@ -92,6 +93,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
 
     matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, true_hits, detector_matrix)
     if plot:
+        evaluate_detector.plot_response_matrix(detector_matrix)
         sum_signal_per_chamber = np.sum(signal, axis=1)
         y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
         evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_inverse_unfolding_results[0], energies_return)
@@ -120,8 +122,8 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 if __name__ == "__main__":
     test_detector_response_matrix_unfolding(1347, plot=True)
-    #test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=True)
-    test_identity_response_matrix_unfolding(1347, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.495, plot=True)
+    test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
+    #test_identity_response_matrix_unfolding(1347, plot=True)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.495, plot=True)

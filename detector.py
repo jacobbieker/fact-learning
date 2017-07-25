@@ -254,7 +254,7 @@ class Detector:
         # must be normalized at some point, either row or column, or both, or some other way, but must be normalized
         # Normalized = percentage = probabllilty
         # Make a table, per particle: ID | Observable | True Energy and make 2D histogram of Observable vs True Energy
-        print(original_energy_distribution)
+        #print(original_energy_distribution)
         sum_true_energy_per_particle = original_energy_distribution
         sum_signal = np.sum(signal, axis=1)
 
@@ -268,7 +268,7 @@ class Detector:
         A_row_Norm = A / A.sum(axis=1, keepdims=True)
         # pprint.pprint(A_row_Norm)
 
-        A_column_Norm = A / A.sum(axis=0, keepdims=True)
+        A_col_Norm = A / A.sum(axis=0, keepdims=True)
         # pprint.pprint(A_column_Norm)
 
-        return A_column_Norm
+        return A_col_Norm
