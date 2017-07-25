@@ -17,7 +17,6 @@ def test_detector(random_state=None, plot=False):
                         smearing=True,
                         resolution_chamber=1.,
                         noise=0.,
-                        plot=plot,
                         random_state=random_state)
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
