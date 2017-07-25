@@ -39,7 +39,7 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.0, num_b
         random_state = np.random.RandomState(random_state)
 
     energies = 1000.0 * random_state.power(0.70, 500)
-    below_zero = energies < 0.0
+    below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
     def get_response_matrix():
@@ -62,3 +62,5 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.0, num_b
     matrix_unfolding_results = matrix_inverse_unfolding(detected_signal, energies, detector_response_matrix, num_bins=num_bins)
     if epsilon == 0.0:
         assert y_vector[0] == matrix_unfolding_results[0]
+
+test_epsilon_response_matrix_unfolding()

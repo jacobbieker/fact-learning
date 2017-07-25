@@ -105,32 +105,3 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
         return np.sum(np.log(f * powerlaw.pdf(data) + (1 - f) * powerlaw.pdf(data)))
 
     raise NotImplementedError
-
-
-energies = 1000.0 * np.random.power(0.70, 5000)
-# energies = normal(loc=1000.0, scale=500, size=1000)
-below_zero = energies < 0.0
-energies[below_zero] = 1.0
-
-detector = Detector(distribution='gaussian',
-                    energy_loss='random',
-                    make_noise=False,
-                    smearing=False,
-                    resolution_chamber=1.,
-                    noise=0.,
-                    plot=False)
-
-detector_test = Detector(distribution='gaussian',
-                         energy_loss='random',
-                         make_noise=False,
-                         smearing=False,
-                         resolution_chamber=1.,
-                         noise=0.,
-                         plot=False)
-
-test_signal, test_true_hits, test_energies, test_detector_matrix = detector_test.simulate(energies)
-signal, true_hits, energies, detector_matrix = detector.simulate(energies)
-eigenvalue_cutoff(signal, energies, detector_matrix, 0.0)
-#test_unfolding(energies, detector_matrix, num_bins=15)
-# svd_unfolding(test_signal, energies, detector_matrix)
-matrix_inverse_unfolding(test_signal, energies, detector_matrix, num_bins=15)
