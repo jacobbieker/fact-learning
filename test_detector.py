@@ -17,7 +17,7 @@ def test_detector(random_state=None, plot=False):
                         smearing=True,
                         resolution_chamber=1.,
                         noise=0.,
-                        plot=False,
+                        plot=plot,
                         random_state=random_state)
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
@@ -28,6 +28,15 @@ def test_detector(random_state=None, plot=False):
     assert true_hits.shape[1] == detector.n_chambers
     assert all(energies_return == energies)
     assert all(np.isclose(np.sum(detector_matrix, axis=0), 1.))
+
+
+def test_detector_response_matrix_unfolding(random_state=None, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 500)
+    below_zero = energies < 0.0
+    energies[below_zero] = 1.0
 
 
 if __name__ == "__main__":
