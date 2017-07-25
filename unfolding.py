@@ -64,6 +64,8 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     x_vector = powerlaw.pdf(x_pdf_space, 0.70)
 
     # Get the inverse of the detector response matrix
+    print("__________________ DETECTOR DETERMINANT ________________")
+    print(np.linalg.det(detector_response_matrix))
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
 
     x_vector_unf = np.dot(inv_detector_response_matrix, y_vector[0])

@@ -42,8 +42,8 @@ class Detector:
     make_noise: bool
         Whether to add random noise or have noise disappear
 
-    plot: bool
-        Whether to output various plots of the detector and energy
+    response_bins: int
+        Number of bins to make the response matrix
 
     Attributes
     ----------
@@ -57,6 +57,7 @@ class Detector:
                  energy_loss='const',
                  loss_rate=10.,
                  noise=0.,
+                 response_bins=20,
                  distribution="binomial",
                  smearing=True,
                  make_noise=True,
@@ -70,6 +71,7 @@ class Detector:
         self.energy_loss = energy_loss
         self.loss_rate = loss_rate
         self.noise = noise
+        self.response_bins=response_bins
         self.smearing = smearing
         self.distribution = distribution
         self.make_noise = make_noise
@@ -240,10 +242,10 @@ class Detector:
         detector_matrix = self.get_response_matrix(energies, signal)
         return signal, true_hits, energies, detector_matrix
 
-    def get_response_matrix(self, original_energy_distribution, signal, num_bins=50):
+    def get_response_matrix(self, original_energy_distribution, signal):
         if self.n_chambers < 2:
             raise ValueError("Number of Chambers must be larger than 2")
-
+        num_bins = self.response_bins
         # A = np.zeros((self.n_chambers, self.n_chambers))
 
         # If Acceptance is less than 1, than the normalization should not add up to 1 in that row
