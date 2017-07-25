@@ -122,8 +122,8 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 if __name__ == "__main__":
     test_detector_response_matrix_unfolding(1347, plot=True)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
+    #test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
     #test_identity_response_matrix_unfolding(1347, plot=True)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.495, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, plot=True)
