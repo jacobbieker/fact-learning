@@ -250,6 +250,9 @@ class Detector:
 
         # A = np.zeros((self.n_chambers, self.n_chambers))
 
+        # If Acceptance is less than 1, than the normalization should not add up to 1 in that row
+        # It should normalize to whatever value the acceptance is, so if its 0.8, should normalize to 0.8
+
 
         # To get the response matrix, do a 2d histogram of Original energy distribution vs measured energy, the historgram
         # must be normalized at some point, either row or column, or both, or some other way, but must be normalized

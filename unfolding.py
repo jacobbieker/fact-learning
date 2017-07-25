@@ -46,14 +46,13 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     sum_signal_per_chamber = np.sum(signal, axis=1)
 
     # x_vector =
-    detector_matrix_col = detector_response_matrix
     y_vector = np.histogram(sum_signal_per_chamber,
                             bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber),
-                                             detector_matrix_col.shape[0]))
-    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix_col.shape[0])
+                                             detector_response_matrix.shape[0]))
+    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
 
     # Get the inverse of the detector response matrix
-    inv_detector_response_matrix = np.linalg.inv(detector_matrix_col)
+    inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
 
     x_vector_unf = np.dot(inv_detector_response_matrix, y_vector[0])
 
@@ -70,15 +69,12 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # TODO: Change x_vector to the underlying distribution (either from Detector class, or find here)
     # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
-    # So current problems are that as teh number of events goes up, the unfolded amount of energy increases for the final
+    # So current problems are that as the number of events goes up, the unfolded amount of energy increases for the final
     # result. Like, instead of increasing the amount of counts for energies at 1000, it increaseas the total energy, but
     # Only has a few particles in each spot. Maybe another issue with binning? Or my unfolding is really that bad, when
     # taken from what Mathis gave me. Doesn't make sense, some stupid thing I'm doing is messing this up.
 
-
-    return
-
-    # raise NotImplementedError
+    return x_vector_unf, sigma_x_unf, V_x_est, V_y
 
 
 def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
