@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
-    plt.bar(true_vector[1][:-1], true_vector[0], width=true_vector[1][1:], label="Y Vector")
+    plt.bar(true_vector[1][:-1], true_vector[0], width=true_vector[1][1:], fill=False, label="Y Vector")
     plt.hist(energies, bins=np.linspace(min(energies), max(energies), num_bins), normed=False,
              label="True Energy", histtype='step')
     plt.hist(detected_signal,
@@ -20,7 +20,7 @@ def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
 
 def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
-    plt.bar(true_vector[1][:-1], unfolded_vector, width=true_vector[1][1:], label="Unfolded Energy")
+    plt.bar(true_vector[1][:-1], unfolded_vector, width=true_vector[1][1:], fill=False, label="Unfolded Energy")
     plt.hist(energies, bins=np.linspace(min(energies), max(energies), num_bins), normed=False,
              label="True Energy", histtype='step')
     y_values = np.histogram(unfolded_vector, bins=len(unfolded_vector))

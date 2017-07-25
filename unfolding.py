@@ -38,9 +38,12 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     # Now to do the unfolding by dividing coefficients by the eigenvalues in D to get b_j
     b_j = np.zeros_like(c)
     for j, coefficient in enumerate(c):
-        b_j[j] = coefficient / D[j,j]
+        # Cutting the number of values in half, just to test it
+        if j < (D.shape[0]/2):
+            b_j[j] = coefficient / D[j,j]
 
     unfolded_x = np.dot(U, b_j)
+    print(unfolded_x)
 
     return eigen_vals, eigen_vecs
 
@@ -50,10 +53,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
         sum_signal_per_chamber = np.sum(signal, axis=1)
         y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
     else:
-        sum_signal_per_chamber = signal
         y_vector = [signal, 0]
-
-    # x_vector =
 
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
@@ -72,11 +72,6 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     # Need to compare to underlying PDF, which can just be the counts
     # TODO: Change x_vector to the underlying distribution (either from Detector class, or find here)
     # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
-
-    # So current problems are that as the number of events goes up, the unfolded amount of energy increases for the final
-    # result. Like, instead of increasing the amount of counts for energies at 1000, it increaseas the total energy, but
-    # Only has a few particles in each spot. Maybe another issue with binning? Or my unfolding is really that bad, when
-    # taken from what Mathis gave me. Doesn't make sense, some stupid thing I'm doing is messing this up.
 
     return x_vector_unf, sigma_x_unf, V_x_est, V_y
 

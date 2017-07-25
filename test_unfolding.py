@@ -70,6 +70,33 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
         evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_unfolding_results[0], energies, num_bins=num_bins)
 
 
+def test_detector_response_matrix_unfolding(random_state=None, noise=True, smearing=True, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 500)
+    # energies = normal(loc=1000.0, scale=500, size=1000)
+    below_zero = energies < 0.0
+    energies[below_zero] = 1.0
+
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=noise,
+                        smearing=smearing,
+                        resolution_chamber=1.,
+                        noise=0.,
+                        random_state=random_state)
+
+    signal, true_hits, energies_return, detector_matrix = detector.simulate(
+        energies)
+
+    matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, true_hits, detector_matrix)
+    if plot:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
+        evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_inverse_unfolding_results[0], energies_return)
+
+
 def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=0.2, num_bins=20, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
@@ -92,7 +119,9 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 
 if __name__ == "__main__":
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=True)
+    test_detector_response_matrix_unfolding(1347, plot=True)
+    #test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=True)
     test_identity_response_matrix_unfolding(1347, plot=True)
     test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
     test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.495, plot=True)
