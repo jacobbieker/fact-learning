@@ -61,6 +61,8 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.0, num_b
     detected_signal = np.dot(y_vector[0], detector_response_matrix)
     matrix_unfolding_results = matrix_inverse_unfolding(detected_signal, energies, detector_response_matrix, num_bins=num_bins)
     if epsilon == 0.0:
+        print(y_vector[0])
+        print(matrix_unfolding_results[0])
         assert y_vector[0].all() == matrix_unfolding_results[0].all()
 
 test_epsilon_response_matrix_unfolding()

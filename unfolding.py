@@ -42,14 +42,12 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
 def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):
     if signal.ndim == 2:
         sum_signal_per_chamber = np.sum(signal, axis=1)
+        y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
     else:
         sum_signal_per_chamber = signal
+        y_vector = [signal, 0]
 
     # x_vector =
-    y_vector = np.histogram(sum_signal_per_chamber,
-                            bins=np.linspace(min(sum_signal_per_chamber), max(sum_signal_per_chamber),
-                                             detector_response_matrix.shape[0]))
-    y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
 
     # Get the inverse of the detector response matrix
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
