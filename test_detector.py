@@ -22,6 +22,7 @@ def test_detector(random_state=None, plot=False):
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
 
+
     assert signal.shape[0] == energies.shape[0]
     assert signal.shape[1] == detector.n_chambers
     assert true_hits.shape[0] == energies.shape[0]
