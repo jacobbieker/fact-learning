@@ -60,7 +60,6 @@ class Detector:
                  distribution="binomial",
                  smearing=True,
                  make_noise=True,
-                 plot=False,
                  random_state=None):
         if not isinstance(random_state, np.random.RandomState):
             random_state = np.random.RandomState(random_state)
@@ -72,7 +71,6 @@ class Detector:
         self.loss_rate = loss_rate
         self.noise = noise
         self.smearing = smearing
-        self.plot = plot
         self.distribution = distribution
         self.make_noise = make_noise
 
@@ -240,8 +238,6 @@ class Detector:
         chamber_hits = true_hits + noise_hits
         signal = self.generate_chamber_signal(chamber_hits)
         detector_matrix = self.get_response_matrix(energies, signal)
-        if self.plot:
-            self.plot_simulation(energies, true_hits, noise_hits, chamber_hits, signal)
         return signal, true_hits, energies, detector_matrix
 
     def get_response_matrix(self, original_energy_distribution, signal, num_bins=50):
