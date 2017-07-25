@@ -1,8 +1,4 @@
 import numpy as np
-from numpy.random import normal, gamma
-import matplotlib.pyplot as plt
-import scipy.stats as stats
-import pprint
 
 
 class Detector:
@@ -64,8 +60,11 @@ class Detector:
                  distribution="binomial",
                  smearing=True,
                  make_noise=True,
-                 plot=False):
-
+                 plot=False,
+                 random_state=None):
+        if not isinstance(random_state, np.random.RandomState):
+            random_state = np.random.RandomState(random_state)
+        self.random_state = random_state
         self.n_chambers = n_chambers
         self.threshold_chambers = threshold_chambers
         self.resolution_chamber = resolution_chamber
@@ -107,7 +106,8 @@ class Detector:
 
             for particle_number, energy in enumerate(energies):
                 # Create a gamma distribution with a mean of the loss_rate for every chamber
-                real_energy_loss = gamma(shape=k, scale=theta, size=self.n_chambers)
+                real_energy_loss = self.random_state.gamma(
+                    shape=k, scale=theta, size=self.n_chambers)
 
                 # Energy lost is energy * fraction_lost
                 for chamber_number in range(self.n_chambers):
@@ -125,7 +125,8 @@ class Detector:
             for particle_number, energy in enumerate(energies):
                 # Create a gamma distribution with a mean of the loss_rate for every chamber
                 # Create it in the loop to vary it for each particle
-                real_distance_travelled = gamma(shape=k, scale=theta, size=self.n_chambers)
+                real_distance_travelled = self.random_state.gamma(
+                    shape=k, scale=theta, size=self.n_chambers)
 
                 # How much energy the particle loses each time is fixed here as a fraction
                 particle_random_loss = 0.1
@@ -165,7 +166,8 @@ class Detector:
         noise_hits = np.zeros(shape=(n_events, self.n_chambers))
         if self.make_noise:
             for event_number, event in enumerate(noise_hits):
-                noise_distribution = normal(loc=self.noise, size=self.n_chambers)
+                noise_distribution = self.random_state.normal(
+                    loc=self.noise, size=self.n_chambers)
                 zero_threshold = noise_distribution < 0.0
                 noise_distribution[zero_threshold] = 0.0
                 noise_hits[event_number] = noise_distribution
@@ -199,14 +201,16 @@ class Detector:
                 if self.distribution == 'binomial':
                     photons_detected = np.random.binomial(n=total_photons, p=self.resolution_chamber)
                 elif self.distribution == 'gaussian':
-                    photons_detected = normal(loc=energy_value, scale=self.resolution_chamber)
+                    photons_detected = self.random_state.normal(
+                        loc=energy_value, scale=self.resolution_chamber)
 
                 if photons_detected < 0.0:
                     photons_detected = 0.0
                 # Generate the smearing, based on the energy of the particle received, with std 1/root(N) photons
                 if photons_detected > 1.0:
                     if self.smearing:
-                        smear = normal(scale=1.0 / np.sqrt(photons_detected))
+                        smear = self.random_state.normal(
+                            scale=1.0 / np.sqrt(photons_detected))
                         smeared_value = photons_detected + smear
                     else:
                         smeared_value = photons_detected
@@ -268,153 +272,4 @@ class Detector:
         A_column_Norm = A / A.sum(axis=0, keepdims=True)
         # pprint.pprint(A_column_Norm)
 
-        plt.imshow(A, interpolation="nearest", origin="upper")
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.colorbar()
-        plt.title("Detector Response Matrix Raw")
-   #     plt.show()
-
-        plt.imshow(A_column_Norm, interpolation="nearest", origin="upper")
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.colorbar()
-        plt.title("Detector Response Matrix Column Norm")
-     #   plt.show()
-
-        plt.imshow(A_row_Norm, interpolation="nearest", origin="upper")
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.colorbar()
-        plt.title("Detector Response Matrix Row Norm")
-        plt.show()
-
-        # TODO: Need to normalize based off the column to equal 1
-
         return A_column_Norm
-
-    def plot_simulation(self, energies, true_hits, noise_hits, chamber_hits, signal):
-        ''' This function produces various plots from the simulation
-
-        Parameters
-        ----------
-        energies :
-        true_hits:
-        noise_hits:
-        chamber_hits:
-        signal:
-
-        Returns
-        -------
-        Nothing. Displays multiple plots
-        '''
-
-        plt.hist(energies, 40)
-        plt.title("Particle Energies")
-        plt.xlabel("Energy")
-        plt.ylabel("Number of Particles")
-        plt.show()
-
-        figure = plt.figure()
-
-        ax = figure.add_subplot(111)
-
-        for index in range(energies.shape[0]):
-            ax.scatter(true_hits[index], signal[index])
-
-        # plt.scatter(true_hits[1], signal[1])
-        plt.xlabel("True Energy")
-        plt.ylabel("Signal (Number of Photons)")
-        plt.title("True Energy vs Signal for each Chamber and each Event")
-        plt.show()
-
-        # Now plot energy per bin
-        figure = plt.figure()
-        ax = figure.add_subplot(111)
-
-        for index in range(energies.shape[0]):
-            ax.scatter(np.arange(0, self.n_chambers), true_hits[index])
-            # ax.scatter(np.arange(0, self.n_chambers), signal[index])
-        plt.title("True Energy per Chamber per Event")
-        plt.ylabel("Energy Value")
-        plt.xlabel("Chamber Number")
-        plt.show()
-
-        # Now plot energy per bin
-        figure = plt.figure()
-        ax = figure.add_subplot(111)
-
-        for index in range(energies.shape[0]):
-            # ax.scatter(np.arange(0,self.n_chambers), true_hits[index])
-            ax.scatter(np.arange(0, self.n_chambers), signal[index])
-        plt.title("Signal per Chamber per Event")
-        plt.ylabel("Number of Photons")
-        plt.xlabel("Chamber Number")
-        plt.show()
-
-        figure = plt.figure()
-        ax = figure.add_subplot(111)
-
-        sum_chambers = np.sum(true_hits, axis=1)
-        sum_signal = np.sum(signal, axis=1)
-
-        ax.hist(sum_chambers, bins=20, label="True Energy")
-        ax.hist(sum_signal, bins=20, label="Measured Photons")
-        plt.legend(loc='best')
-        plt.show()
-
-        plt.hist(sum_chambers, bins=np.linspace(min(sum_chambers), max(sum_chambers), 50), normed=True,
-                 label="True Energy")
-        plt.hist(sum_signal, bins=np.linspace(min(sum_signal), max(sum_signal), 50),
-                 histtype='step', normed=True, label="Measured Photons")
-        plt.legend(loc='best')
-        plt.title("True Energy Distribution vs Measured Distribution")
-        plt.ylabel("Normalized Value")
-        plt.xlabel("Total Energy Deposited per Particle")
-        plt.show()
-
-        # Detector response matrix: 2d histogram
-        sum_chamber_per_chamber = np.sum(true_hits, axis=0)
-        sum_signal_per_chamber = np.sum(signal, axis=0)
-
-        plt.hist2d(sum_chamber_per_chamber, sum_signal_per_chamber, normed=True)
-        plt.title("Detector Response Matrix for summed per chamber")
-        plt.xlabel("True Energy")
-        plt.ylabel("Measured Energy")
-        plt.show()
-
-        plt.hist2d(sum_chamber_per_chamber, sum_signal_per_chamber, normed=False)
-        plt.title("Detector Response Matrix for summed per chamber (Unnormalized)")
-        plt.xlabel("True Energy")
-        plt.ylabel("Measured Energy")
-        plt.show()
-
-        plt.hist2d(sum_chambers, sum_signal, normed=True)
-        plt.title("Detector Response Matrix for summed per particle")
-        plt.xlabel("True Energy")
-        plt.ylabel("Measured Energy")
-        plt.show()
-
-        # Number of events at that energy level for both True and Measured
-
-        if self.make_noise:
-            plt.hist(noise_hits, 10)
-            plt.title("Noise Distribution Per Chamber")
-            plt.show()
-
-
-if __name__ == "__main__":
-    # Try it out
-    energies = 1000.0 * np.random.power(0.70, 500)
-    # energies = normal(loc=1000.0, scale=500, size=1000)
-    below_zero = energies < 0.0
-    energies[below_zero] = 1.0
-
-    detector = Detector(distribution='gaussian',
-                        energy_loss='const',
-                        make_noise=True,
-                        smearing=True,
-                        resolution_chamber=1.,
-                        noise=0.,
-                        plot=False)
-    detector.simulate(energies)
