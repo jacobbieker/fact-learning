@@ -40,7 +40,7 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 500)
+    energies = 1000.0 * random_state.power(0.70, 50000)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
@@ -73,6 +73,10 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
             elif norm == 'row':
                 A[i+1, i] = 1. - (1. - subtract/2.)
                 A[i-1, i] = 1. - (1. - subtract/2.)
+        if norm == 'column':
+            A = A / A.sum(axis=0, keepdims=True)
+        else:
+            A = A / A.sum(axis=1, keepdims=True)
         return A
 
     detector_response_matrix = get_response_matrix()
@@ -108,7 +112,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 500)
+    energies = 1000.0 * random_state.power(0.70, 50000)
     # energies = normal(loc=1000.0, scale=500, size=1000)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
@@ -157,7 +161,7 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 
 if __name__ == "__main__":
-    #test_detector_response_matrix_unfolding(1347, plot=True)
+    test_detector_response_matrix_unfolding(1347, plot=True)
     # test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
     # test_identity_response_matrix_unfolding(1347, plot=True)
     test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)

@@ -68,7 +68,7 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     print(np.linalg.det(detector_response_matrix))
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
 
-    x_vector_unf = np.dot(inv_detector_response_matrix, y_vector[0])
+    x_vector_unf = np.dot(y_vector[0], inv_detector_response_matrix)
 
     print("Unfolded Size:\n", str(len(x_vector_unf)))
 
