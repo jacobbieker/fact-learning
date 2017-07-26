@@ -5,7 +5,36 @@ import numdifftools as nd
 import evaluate_unfolding
 
 
-def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
+def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=False):
+    U = eigen_vectors
+    eigen_vals = np.absolute(eigen_values)
+    sorting = np.argsort(eigen_vals)[::-1]
+    eigen_vals = eigen_vals[sorting]
+    D = np.diag(eigen_vals)
+
+    sum_signal_per_chamber = np.sum(signal, axis=1) # The x value
+    y_vector = np.histogram(sum_signal_per_chamber, bins=U.shape[0])
+    x_vector_true = np.histogram(true_energy, bins=U.shape[0])
+    c = np.dot(U.T, y_vector[0])
+    b = np.dot(U.T, x_vector_true[0])
+    d_b = np.dot(D, b)
+
+    # Now to do the unfolding by dividing coefficients by the eigenvalues in D to get b_j
+    b_j = np.zeros_like(c)
+    for j, coefficient in enumerate(c):
+        # Cutting the number of values in half, just to test it
+        if cutoff:
+            if j < (D.shape[0]/2):
+                b_j[j] = coefficient / D[j,j]
+        else:
+            b_j[j] = coefficient / D[j,j]
+
+    unfolded_x = np.dot(U, b_j)
+
+    return b, b_j, c
+
+
+def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cutoff=False):
     """
     Remove the lower eigenvalues that fall below the unfolding error, to smooth out the result
     :param signal: The signal from the detector
@@ -40,15 +69,13 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error):
     b_j = np.zeros_like(c)
     for j, coefficient in enumerate(c):
         # Cutting the number of values in half, just to test it
-        if j < (D.shape[0]/2):
+        if cutoff:
+            if j < (D.shape[0]/2):
+                b_j[j] = coefficient / D[j,j]
+        else:
             b_j[j] = coefficient / D[j,j]
-    print(b_j)
     unfolded_x = np.dot(U, b_j)
     print(unfolded_x)
-
-
-    evaluate_unfolding.plot_unfolded_vs_true()
-
 
     return eigen_vals, eigen_vecs
 
@@ -64,13 +91,9 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     x_vector = powerlaw.pdf(x_pdf_space, 0.70)
 
     # Get the inverse of the detector response matrix
-    print("__________________ DETECTOR DETERMINANT ________________")
-    print(np.linalg.det(detector_response_matrix))
     inv_detector_response_matrix = np.linalg.inv(detector_response_matrix)
 
     x_vector_unf = np.dot(y_vector[0], inv_detector_response_matrix)
-
-    print("Unfolded Size:\n", str(len(x_vector_unf)))
 
     # Error propagation
     V_y = np.diag(y_vector[0])

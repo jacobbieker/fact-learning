@@ -59,3 +59,39 @@ def plot_eigenvalues(eigenvalues, eigenvectors, n_dims):
         ax_i.set_title('Shape Eigenvectors {}'.format(i))
         ax_i.set_xlabel('Index $j$')
     plt.show()
+
+
+def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured_coefficients):
+    true_b = true_coefficients
+    folded_b_j = folded_coefiicient
+    measured_c = measured_coefficients
+
+    folded_b = np.sort(np.abs(folded_b_j))
+    true_b = np.sort(np.abs(true_b))
+    measured_c = np.sort(np.abs(measured_c))
+
+    folded_b[:] = folded_b[::-1]
+    true_b[:] = true_b[::-1]
+    measured_c[:] = measured_c[::-1]
+
+    binning = np.linspace(0, true_b.shape[0], true_b.shape[0]+1)
+    bin_center = (binning[:-1] + binning[1:]) /2
+
+    plt.hist(bin_center, weights=true_b, bins=binning, histtype='step', label="True B")
+    plt.hist(bin_center, weights=folded_b, bins=binning, histtype='step', label="Folded B_j")
+
+    plt.xlabel("Index j")
+    plt.title("Coeff of true and folded distributions")
+    plt.legend(loc="best")
+    plt.yscale('log')
+    #plt.xscale('log')
+    plt.show()
+
+    plt.hist(bin_center, weights=measured_c, bins=binning, histtype='step', label="Folded B_j")
+
+    plt.xlabel("Index j")
+    plt.title("Coeff of measured distributions")
+    plt.legend(loc="best")
+    plt.yscale('log')
+    #plt.xscale('log')
+    plt.show()

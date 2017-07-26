@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from detector import Detector
-from unfolding import matrix_inverse_unfolding, svd_unfolding, llh_unfolding, eigenvalue_cutoff
+from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfolding, llh_unfolding, eigenvalue_cutoff
 import evaluate_unfolding
 import evaluate_detector
 
@@ -40,7 +40,7 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 50000)
+    energies = 1000.0 * random_state.power(0.70, 500)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
@@ -112,7 +112,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 50000)
+    energies = 1000.0 * random_state.power(0.70, 500)
     # energies = normal(loc=1000.0, scale=500, size=1000)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
@@ -157,13 +157,18 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
     eigenvalues, eigenvectors = eigenvalue_cutoff(signal, energies, detector_matrix, 0.0)
-    evaluate_unfolding.plot_eigenvalues(eigenvalues, eigenvectors, n_dims=detector_matrix.shape[0])
+
+    true, folded, measured = obtain_coefficients(signal, energies, eigenvalues, eigenvectors)
+
+    evaluate_unfolding.plot_eigenvalue_coefficients(true, folded, measured)
+    if plot:
+        evaluate_unfolding.plot_eigenvalues(eigenvalues, eigenvectors, n_dims=detector_matrix.shape[0])
 
 
 if __name__ == "__main__":
-    test_detector_response_matrix_unfolding(1347, plot=True)
-    # test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
-    # test_identity_response_matrix_unfolding(1347, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=6000, plot=True)
+    #test_detector_response_matrix_unfolding(1347, plot=False)
+    test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
+    #test_identity_response_matrix_unfolding(1347, plot=False)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=False)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=False)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=600, plot=False)
