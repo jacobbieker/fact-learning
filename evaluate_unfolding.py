@@ -87,10 +87,10 @@ def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured
     #plt.xscale('log')
     plt.show()
 
-    plt.hist(bin_center, weights=measured_c, bins=binning, histtype='step', label="Folded B_j")
+    plt.hist(bin_center, weights=measured_c, bins=binning, histtype='step', label="Measured C")
 
     plt.xlabel("Index j")
-    plt.title("Coeff of measured distributions")
+    plt.title("Coeff of measured distribution")
     plt.legend(loc="best")
     plt.yscale('log')
     #plt.xscale('log')
