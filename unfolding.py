@@ -100,11 +100,12 @@ def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_
     V_x_est = np.dot(inv_detector_response_matrix, np.dot(V_y, inv_detector_response_matrix.T))
     sigma_x_unf = np.sqrt(np.diag(V_x_est))
 
-    print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
-    print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
-    print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+    #print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
+    #print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
+    #print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
-    return x_vector_unf, sigma_x_unf, V_x_est, V_y
+    unf_pdf_sigma = (x_vector_unf - x_vector) / sigma_x_unf
+    return x_vector_unf, sigma_x_unf, V_x_est, V_y, unf_pdf_sigma
 
 
 def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):

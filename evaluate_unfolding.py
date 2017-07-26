@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import powerlaw
 
+
 def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
     plt.bar(true_vector[1][:-1], true_vector[0], width=true_vector[1][1:], fill=False, label="Y Vector")
     plt.hist(energies, bins=np.linspace(min(energies), max(energies), num_bins), normed=False,
@@ -94,4 +95,14 @@ def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured
     plt.legend(loc="best")
     plt.yscale('log')
     #plt.xscale('log')
+    plt.show()
+
+
+def plot_error_stats(mean, std):
+    x = np.linspace(0, mean.shape[0], num=mean.shape[0])
+    plt.errorbar(x, mean, yerr=std, linestyle='None')
+    plt.plot(np.unique(x), np.poly1d(np.polyfit(x, mean, 1))(np.unique(x)))
+    plt.title("Mean and Std of errors for different runs")
+    plt.ylabel("Mean/Standard Deviation")
+    plt.xlabel("Run Number")
     plt.show()

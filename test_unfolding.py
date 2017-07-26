@@ -139,11 +139,61 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
         evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_inverse_unfolding_results[0], energies_return)
 
 
+def test_multiple_datasets_std(random_state=None, num_datasets=20, num_bins=20, noise=True, smearing=True, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    # Array to hold the arrays of means and stuff
+    array_of_unfolding_errors = []
+
+    subset_random_state_seed = random_state.random_integers(low=3000000, size=num_datasets)
+
+    # Generate the different datasets based off the random_state
+    for seed in subset_random_state_seed:
+        subset_random_state = np.random.RandomState(seed)
+
+        # Now generate the datasets
+        energies = 1000.0 * subset_random_state.power(0.70, 500)
+        below_zero = energies < 1.0
+        energies[below_zero] = 1.0
+
+        detector = Detector(distribution='gaussian',
+                            energy_loss='const',
+                            make_noise=noise,
+                            smearing=smearing,
+                            resolution_chamber=1.,
+                            noise=0.,
+                            response_bins=num_bins,
+                            random_state=subset_random_state)
+
+        signal, true_hits, energies_return, detector_matrix = detector.simulate(energies)
+
+        matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, true_hits, detector_matrix)
+        array_of_unfolding_errors.append(matrix_inverse_unfolding_results[4])
+
+    array_of_unfolding_errors = np.asarray(array_of_unfolding_errors)
+    print(array_of_unfolding_errors.shape)
+
+    # Different ways of getting the mean and std
+    # Mean and std of datasets
+    print(np.mean(array_of_unfolding_errors, axis=1))
+    print(np.std(array_of_unfolding_errors, axis=1))
+
+    # Mean and std of the whole thing
+    print(np.mean(array_of_unfolding_errors))
+    print(np.std(array_of_unfolding_errors))
+
+    evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1), np.std(array_of_unfolding_errors, axis=1))
+    # evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors), np.std(array_of_unfolding_errors))
+
+    raise NotImplementedError
+
+
 def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=0.2, num_bins=20, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 500)
+    energies = 1000.0 * random_state.power(0.70, 50000)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
@@ -153,6 +203,7 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
                         smearing=True,
                         resolution_chamber=1.,
                         noise=0.,
+                        response_bins=num_bins,
                         random_state=random_state)
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
@@ -166,8 +217,9 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 
 if __name__ == "__main__":
+    test_multiple_datasets_std(1347, num_datasets=500)
     #test_detector_response_matrix_unfolding(1347, plot=False)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
+    test_eigenvalue_cutoff_response_matrix_unfolding(1347, num_bins=20, plot=False)
     #test_identity_response_matrix_unfolding(1347, plot=False)
     #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=False)
     #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=False)
