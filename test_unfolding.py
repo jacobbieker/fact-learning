@@ -58,13 +58,40 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
             A[i, i - 1] = epsilon
         return A
 
+    def get_unbalance_response_matrix(norm='column'):
+        if num_bins < 2:
+            raise ValueError('dim must be larger than 2')
+        A = np.zeros((num_bins, num_bins))
+        A[0,0] = 1.
+        A[-1,-1] = 1.
+        for i in range(num_bins)[1:-1]:
+            subtract = np.random.random()
+            A[i,i] = 1. - subtract
+            if norm == 'column':
+                A[i, i+1] = 1. - (1. - subtract/2.)
+                A[i, i - 1] = 1. - (1. - subtract/2.)
+            elif norm == 'row':
+                A[i+1, i] = 1. - (1. - subtract/2.)
+                A[i-1, i] = 1. - (1. - subtract/2.)
+        return A
+
     detector_response_matrix = get_response_matrix()
+    col_norm_matrix = get_unbalance_response_matrix()
+    row_norm_matrix = get_unbalance_response_matrix('row')
     y_vector = np.histogram(energies, bins=num_bins)
     detected_signal = np.dot(y_vector[0], detector_response_matrix)
+    col_detected_signal = np.dot(y_vector[0], col_norm_matrix)
+    row_detected_signal = np.dot(y_vector[0], row_norm_matrix)
+    col_unfolding_results = matrix_inverse_unfolding(col_detected_signal, energies, col_norm_matrix,
+                                                     num_bins=num_bins)
+    row_unfolding_results = matrix_inverse_unfolding(row_detected_signal, energies, row_norm_matrix,
+                                                     num_bins=num_bins)
     matrix_unfolding_results = matrix_inverse_unfolding(detected_signal, energies, detector_response_matrix,
                                                         num_bins=num_bins)
     if epsilon == 0.0:
         assert y_vector[0].all() == matrix_unfolding_results[0].all()
+        assert y_vector[0].all() == col_unfolding_results[0].all()
+        assert y_vector[0].all() == row_unfolding_results[0].all()
     else:
         print(y_vector[0])
         print(matrix_unfolding_results[0])
@@ -73,6 +100,8 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
         evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_unfolding_results[0], energies, num_bins=num_bins)
         print("True x: " + str(y_vector[0]))
         print("Difference: " + str(y_vector[0] - matrix_unfolding_results[0]))
+        print("Difference: " + str(y_vector[0] - col_unfolding_results[0]))
+        print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
 
 
 def test_detector_response_matrix_unfolding(random_state=None, noise=True, smearing=True, plot=False):
@@ -128,9 +157,9 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 
 if __name__ == "__main__":
-    test_detector_response_matrix_unfolding(1347, plot=True)
+    #test_detector_response_matrix_unfolding(1347, plot=True)
     # test_eigenvalue_cutoff_response_matrix_unfolding(1347, plot=False)
     # test_identity_response_matrix_unfolding(1347, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)
-    test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=600, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)
+    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=6000, plot=True)
