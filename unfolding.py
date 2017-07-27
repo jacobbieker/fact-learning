@@ -12,7 +12,7 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     eigen_vals = eigen_vals[sorting]
     D = np.diag(eigen_vals)
 
-    sum_signal_per_chamber = np.sum(signal, axis=1) # The x value
+    sum_signal_per_chamber = np.sum(signal, axis=1)  # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=U.shape[0])
     x_vector_true = np.histogram(true_energy, bins=U.shape[0])
     c = np.dot(U.T, y_vector[0])
@@ -24,10 +24,10 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     for j, coefficient in enumerate(c):
         # Cutting the number of values in half, just to test it
         if cutoff:
-            if j < (D.shape[0]/2):
-                b_j[j] = coefficient / D[j,j]
+            if j < (D.shape[0] / 2):
+                b_j[j] = coefficient / D[j, j]
         else:
-            b_j[j] = coefficient / D[j,j]
+            b_j[j] = coefficient / D[j, j]
 
     unfolded_x = np.dot(U, b_j)
 
@@ -55,10 +55,10 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
     D = np.diag(eigen_vals)
-    kappa = max(eigen_vals)/min(eigen_vals)
+    kappa = max(eigen_vals) / min(eigen_vals)
     print("Kappa:\n", str(kappa))
 
-    sum_signal_per_chamber = np.sum(signal, axis=1) # The x value
+    sum_signal_per_chamber = np.sum(signal, axis=1)  # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
     x_vector_true = np.histogram(true_energy, bins=detector_matrix.shape[0])
     c = np.dot(U.T, y_vector[0])
@@ -70,10 +70,10 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     for j, coefficient in enumerate(c):
         # Cutting the number of values in half, just to test it
         if cutoff:
-            if j < (D.shape[0]/2):
-                b_j[j] = coefficient / D[j,j]
+            if j < (D.shape[0] / 2):
+                b_j[j] = coefficient / D[j, j]
         else:
-            b_j[j] = coefficient / D[j,j]
+            b_j[j] = coefficient / D[j, j]
     unfolded_x = np.dot(U, b_j)
     print(unfolded_x)
 
@@ -106,9 +106,9 @@ def matrix_inverse_unfolding(signal, detector_response_matrix):
     V_x_est = np.dot(inv_detector_response_matrix, np.dot(V_y, inv_detector_response_matrix.T))
     sigma_x_unf = np.sqrt(np.diag(V_x_est))
 
-    #print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
-    #print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
-    #print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+    # print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
+    # print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
+    # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
 
     unf_pdf_sigma = (x_vector_unf - x_vector) / sigma_x_unf
     return x_vector_unf, sigma_x_unf, V_x_est, V_y, unf_pdf_sigma
@@ -135,9 +135,9 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     # d_i = s_iz_i so z_i = d_i/s_i
     z_i = np.zeros_like(s.shape[0])
     for index, i, in enumerate(d):
-        z_i[index] = d[i,i] / s[i,i]
+        z_i[index] = d[i, i] / s[i]
 
-    #Now do it with V to get the unfolded distrubtion
+    # Now do it with V to get the unfolded distrubtion
     unfolded_signal = np.dot(v, z_i)
     print("Differences (Should maybe be 0):")
     print(unfolded_signal - true_energy)
@@ -147,7 +147,25 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     print("Differences (Should be Zero):")
     print(true_unfolded_x - true_energy)
 
-    raise NotImplementedError
+
+    # Here we are rescaling the unknowns and redefining the response matrix
+    # First step is the multiply each column of Aij by the true distriutin x(ini)j
+    # Think this does that
+    rescaled_response_matrix = detector_response_matrix * true_energy
+
+    #Second step is define new unknowns w_j = xj/x(ini)j
+    w_j = signal / true_energy
+
+    # Third step is to rescale the equations to have error os +-1 always.
+    # In uncorreleated errors, achieved by dividing each row of Aij as well as bi by the error delta(bi)
+
+    #TODO: Figure out what the delta(bi) error is, not sure how to get it right now
+
+
+    # Error propagation
+
+
+    return unfolded_signal
 
 
 def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):

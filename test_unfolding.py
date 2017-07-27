@@ -62,17 +62,17 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
         if num_bins < 2:
             raise ValueError('dim must be larger than 2')
         A = np.zeros((num_bins, num_bins))
-        A[0,0] = 1.
-        A[-1,-1] = 1.
+        A[0, 0] = 1.
+        A[-1, -1] = 1.
         for i in range(num_bins)[1:-1]:
             subtract = np.random.random()
-            A[i,i] = 1. - subtract
+            A[i, i] = 1. - subtract
             if norm == 'column':
-                A[i, i+1] = 1. - (1. - subtract/2.)
-                A[i, i - 1] = 1. - (1. - subtract/2.)
+                A[i, i + 1] = 1. - (1. - subtract / 2.)
+                A[i, i - 1] = 1. - (1. - subtract / 2.)
             elif norm == 'row':
-                A[i+1, i] = 1. - (1. - subtract/2.)
-                A[i-1, i] = 1. - (1. - subtract/2.)
+                A[i + 1, i] = 1. - (1. - subtract / 2.)
+                A[i - 1, i] = 1. - (1. - subtract / 2.)
         if norm == 'column':
             A = A / A.sum(axis=0, keepdims=True)
         else:
@@ -86,12 +86,9 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
     detected_signal = np.dot(y_vector[0], detector_response_matrix)
     col_detected_signal = np.dot(y_vector[0], col_norm_matrix)
     row_detected_signal = np.dot(y_vector[0], row_norm_matrix)
-    col_unfolding_results = matrix_inverse_unfolding(col_detected_signal, energies, col_norm_matrix,
-                                                     num_bins=num_bins)
-    row_unfolding_results = matrix_inverse_unfolding(row_detected_signal, energies, row_norm_matrix,
-                                                     num_bins=num_bins)
-    matrix_unfolding_results = matrix_inverse_unfolding(detected_signal, energies, detector_response_matrix,
-                                                        num_bins=num_bins)
+    col_unfolding_results = matrix_inverse_unfolding(col_detected_signal, col_norm_matrix)
+    row_unfolding_results = matrix_inverse_unfolding(row_detected_signal, row_norm_matrix)
+    matrix_unfolding_results = matrix_inverse_unfolding(detected_signal, detector_response_matrix)
     if epsilon == 0.0:
         assert y_vector[0].all() == matrix_unfolding_results[0].all()
         assert y_vector[0].all() == col_unfolding_results[0].all()
@@ -128,7 +125,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
 
-    matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, true_hits, detector_matrix)
+    matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, detector_matrix)
 
     if plot:
         evaluate_detector.plot_response_matrix(detector_matrix)
@@ -168,7 +165,7 @@ def test_multiple_datasets_std(random_state=None, num_datasets=20, num_bins=20, 
 
         signal, true_hits, energies_return, detector_matrix = detector.simulate(energies)
 
-        matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, true_hits, detector_matrix)
+        matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, detector_matrix)
         array_of_unfolding_errors.append(matrix_inverse_unfolding_results[4])
 
     array_of_unfolding_errors = np.asarray(array_of_unfolding_errors)
@@ -184,7 +181,8 @@ def test_multiple_datasets_std(random_state=None, num_datasets=20, num_bins=20, 
     print(np.std(array_of_unfolding_errors))
 
     if plot:
-        evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1), np.std(array_of_unfolding_errors, axis=1))
+        evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1),
+                                            np.std(array_of_unfolding_errors, axis=1))
         # evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors), np.std(array_of_unfolding_errors))
 
 
@@ -215,8 +213,34 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
         evaluate_unfolding.plot_eigenvalues(eigenvalues, eigenvectors, n_dims=detector_matrix.shape[0])
 
 
+def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 500)
+    below_zero = energies < 1.0
+    energies[below_zero] = 1.0
+
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=noise,
+                        smearing=smearing,
+                        resolution_chamber=1.,
+                        noise=0.,
+                        response_bins=num_bins,
+                        random_state=random_state)
+
+    signal, true_hits, energies_return, detector_matrix = detector.simulate(
+        energies)
+
+    svd_unfolding_results = svd_unfolding(signal, true_hits, detector_matrix)
+
+    if plot:
+        evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results, energies_return)
+
+
 if __name__ == "__main__":
-    test_multiple_datasets_std(1347, num_datasets=500)
+    test_multiple_datasets_std(1347, num_datasets=20)
     test_detector_response_matrix_unfolding(1347, plot=False)
     test_eigenvalue_cutoff_response_matrix_unfolding(1347, num_bins=20, plot=False)
     test_identity_response_matrix_unfolding(1347, plot=False)
