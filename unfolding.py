@@ -114,7 +114,7 @@ def matrix_inverse_unfolding(signal, detector_response_matrix):
     return x_vector_unf, sigma_x_unf, V_x_est, V_y, unf_pdf_sigma
 
 
-def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+def svd_unfolding(signal, true_energy, detector_response_matrix):
     u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
     print("U:\n" + str(u))
     print("S:\n" + str(s))
@@ -126,6 +126,14 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     # plt.yscale('log')
     # plt.show()
 
+    if signal.ndim == 2:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+
+    if true_energy.ndim == 2:
+        sum_true_energy = np.sum(true_energy, axis=1)
+        true_energy = np.histogram(sum_true_energy, bins=detector_response_matrix.shape[0])[0]
+
     # So the USV*x = USV*true_energy = signal
     # So need to undo that
     # Need to bin tru energy and signal
@@ -133,9 +141,9 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     d = np.dot(u.T, signal)
 
     # d_i = s_iz_i so z_i = d_i/s_i
-    z_i = np.zeros_like(s.shape[0])
+    z_i = np.zeros_like(s)
     for index, i, in enumerate(d):
-        z_i[index] = d[i, i] / s[i]
+        z_i[index] = d[index] / s[index]
 
     # Now do it with V to get the unfolded distrubtion
     unfolded_signal = np.dot(v, z_i)
@@ -147,23 +155,20 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     print("Differences (Should be Zero):")
     print(true_unfolded_x - true_energy)
 
-
     # Here we are rescaling the unknowns and redefining the response matrix
     # First step is the multiply each column of Aij by the true distriutin x(ini)j
     # Think this does that
     rescaled_response_matrix = detector_response_matrix * true_energy
 
-    #Second step is define new unknowns w_j = xj/x(ini)j
+    # Second step is define new unknowns w_j = xj/x(ini)j
     w_j = signal / true_energy
 
     # Third step is to rescale the equations to have error os +-1 always.
     # In uncorreleated errors, achieved by dividing each row of Aij as well as bi by the error delta(bi)
 
-    #TODO: Figure out what the delta(bi) error is, not sure how to get it right now
-
+    # TODO: Figure out what the delta(bi) error is, not sure how to get it right now
 
     # Error propagation
-
 
     return unfolded_signal
 

@@ -236,10 +236,14 @@ def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20
     svd_unfolding_results = svd_unfolding(signal, true_hits, detector_matrix)
 
     if plot:
+        if true_hits.ndim == 2:
+            sum_true_energy = np.sum(true_hits, axis=1)
+            true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
         evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results, energies_return)
 
 
 if __name__ == "__main__":
+    test_svd_unfolding(1347, plot=True)
     test_multiple_datasets_std(1347, num_datasets=20)
     test_detector_response_matrix_unfolding(1347, plot=False)
     test_eigenvalue_cutoff_response_matrix_unfolding(1347, num_bins=20, plot=False)
