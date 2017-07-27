@@ -116,9 +116,9 @@ def matrix_inverse_unfolding(signal, detector_response_matrix):
 
 def svd_unfolding(signal, true_energy, detector_response_matrix):
     u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
-    print("U:\n" + str(u))
-    print("S:\n" + str(s))
-    print("V:\n" + str(v))
+    #print("U:\n" + str(u))
+    #print("S:\n" + str(s))
+    #print("V:\n" + str(v))
     # plt.imshow(s, interpolation="nearest", origin="upper")
     # plt.colorbar()
     # plt.title("S Matrix")
@@ -147,13 +147,11 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # Now do it with V to get the unfolded distrubtion
     unfolded_signal = np.dot(v, z_i)
-    print("Differences (Should maybe be 0):")
+    print("Differences:")
     print(unfolded_signal - true_energy)
 
     # And so x = Vz, but only if you know true_energy beforehand
     true_unfolded_x = np.dot(v, z)
-    print("Differences (Should be Zero):")
-    print(true_unfolded_x - true_energy)
 
     # Here we are rescaling the unknowns and redefining the response matrix
     # First step is the multiply each column of Aij by the true distriutin x(ini)j
@@ -168,9 +166,28 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # TODO: Figure out what the delta(bi) error is, not sure how to get it right now
 
+    # Now solve the rescaled system
+    # Not sure whether the sigma_j Aij*wj = bi means we have to sum over A before continuing or later
+    # Or something else
+
+    rescaled_u, rescaled_s, rescaled_v = np.linalg.svd(rescaled_response_matrix, full_matrices=True)
+
+    rescaled_z = np.dot(rescaled_v.T, w_j)
+    try:
+        assert np.isclose(np.sum(rescaled_z - true_energy), 0.)
+    except AssertionError:
+        print("Rescaled Equation is not correct, does not invert back to self")
+    rescaled_d = np.dot(rescaled_u.T, signal)
+
+    rescaled_z_i = rescaled_d / rescaled_s
+    rescaled_unfolded = np.dot(rescaled_v, rescaled_z_i)
+
+    print("Differences (Rescaled):")
+    print(rescaled_unfolded - true_energy)
+
     # Error propagation
 
-    return unfolded_signal
+    return unfolded_signal, true_unfolded_x, rescaled_unfolded, d, s, z_i, rescaled_d, rescaled_s, rescaled_z_i
 
 
 def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
