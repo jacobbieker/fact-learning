@@ -183,10 +183,9 @@ def test_multiple_datasets_std(random_state=None, num_datasets=20, num_bins=20, 
     print(np.mean(array_of_unfolding_errors))
     print(np.std(array_of_unfolding_errors))
 
-    evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1), np.std(array_of_unfolding_errors, axis=1))
-    # evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors), np.std(array_of_unfolding_errors))
-
-    raise NotImplementedError
+    if plot:
+        evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1), np.std(array_of_unfolding_errors, axis=1))
+        # evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors), np.std(array_of_unfolding_errors))
 
 
 def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=0.2, num_bins=20, plot=False):
@@ -218,9 +217,9 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, epsilon=
 
 if __name__ == "__main__":
     test_multiple_datasets_std(1347, num_datasets=500)
-    #test_detector_response_matrix_unfolding(1347, plot=False)
+    test_detector_response_matrix_unfolding(1347, plot=False)
     test_eigenvalue_cutoff_response_matrix_unfolding(1347, num_bins=20, plot=False)
-    #test_identity_response_matrix_unfolding(1347, plot=False)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=False)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=False)
-    #test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=600, plot=False)
+    test_identity_response_matrix_unfolding(1347, plot=False)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=False)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=False)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=600, plot=False)

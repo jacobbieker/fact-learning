@@ -80,7 +80,13 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     return eigen_vals, eigen_vecs
 
 
-def matrix_inverse_unfolding(signal, true_energy, detector_response_matrix, num_bins=50):
+def matrix_inverse_unfolding(signal, detector_response_matrix):
+    """
+    Unfold the signal using simple matrix unfolding
+    :param signal: The signal from the detector, in either total energy per chamber or energy per particle per chamber
+    :param detector_response_matrix: The detector Response Matrix, normalized by column
+    :return: The unfolded signal, sigma in the unfolding, the x error estimation, y error, and the unf - pdf / sigma_x
+    """
     if signal.ndim == 2:
         sum_signal_per_chamber = np.sum(signal, axis=1)
         y_vector = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])
@@ -119,6 +125,28 @@ def svd_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     # plt.xscale('log')
     # plt.yscale('log')
     # plt.show()
+
+    # So the USV*x = USV*true_energy = signal
+    # So need to undo that
+    # Need to bin tru energy and signal
+    z = np.dot(v.T, true_energy)
+    d = np.dot(u.T, signal)
+
+    # d_i = s_iz_i so z_i = d_i/s_i
+    z_i = np.zeros_like(s.shape[0])
+    for index, i, in enumerate(d):
+        z_i[index] = d[i,i] / s[i,i]
+
+    #Now do it with V to get the unfolded distrubtion
+    unfolded_signal = np.dot(v, z_i)
+    print("Differences (Should maybe be 0):")
+    print(unfolded_signal - true_energy)
+
+    # And so x = Vz, but only if you know true_energy beforehand
+    true_unfolded_x = np.dot(v, z)
+    print("Differences (Should be Zero):")
+    print(true_unfolded_x - true_energy)
+
     raise NotImplementedError
 
 
