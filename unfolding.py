@@ -5,7 +5,7 @@ import numdifftools as nd
 import evaluate_unfolding
 
 
-def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=False):
+def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=None):
     U = eigen_vectors
     eigen_vals = np.absolute(eigen_values)
     sorting = np.argsort(eigen_vals)[::-1]
@@ -24,8 +24,11 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     for j, coefficient in enumerate(c):
         # Cutting the number of values in half, just to test it
         if cutoff:
-            if j < (D.shape[0] / 2):
+            if j < cutoff:
+                #print(D[j, j])
                 b_j[j] = coefficient / D[j, j]
+            else:
+                b_j[j] = 0.0
         else:
             b_j[j] = coefficient / D[j, j]
 
@@ -34,7 +37,7 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     return b, b_j, c
 
 
-def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cutoff=False):
+def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cutoff=None):
     """
     Remove the lower eigenvalues that fall below the unfolding error, to smooth out the result
     :param signal: The signal from the detector
@@ -85,7 +88,7 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     for j, coefficient in enumerate(c):
         # Cutting the number of values in half, just to test it
         if cutoff:
-            if j < (D.shape[0] / 2):
+            if j < cutoff:
                 print(D[j, j])
                 b_j[j] = coefficient / D[j, j]
             else:
@@ -97,6 +100,11 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     unfolded_multiplied = unfolded_x * (x_vector_true[0] / unfolded_x)
     unfolded_multiplied2 = unfolded_x_other * (x_vector_true[0] / unfolded_x_other)
     print(unfolded_x)
+    print("Sums (unfolded_x, unfolded_x_other, multiplied, multiplied2):")
+    print(np.sum(unfolded_x))
+    print(np.sum(unfolded_x_other))
+    print(np.sum(unfolded_multiplied))
+    print(np.sum(unfolded_multiplied2))
     print("Difference (U * b_j):")
     print(unfolded_x - x_vector_true[0])
     print("Difference (b_j * U):")
