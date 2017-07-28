@@ -50,10 +50,17 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     # And D is the diagnol matrix with the members of the diagonal being the eigenvalues of A in decreasing
     # Order. So need to sort eigenvalues and put the array in a square matrix
 
-    U = eigen_vecs
+    # Sort on U as well
+    # Eigenvalues are set by iterating through bi, ci, and multiplying by 1/lambda
+    # Cutoff is setting it to 0
+    # Set the eigenvalues to zero after the inverse, so basically infinity on the non-inverse eigenvalues
+    # So use for loop for it, setting everything after the cutoff to 0
+    # If done right, eigenvalue cutoff will have less events, but total should have same amount
+    # So the eigenvalues are the coefficeints of the c and/or b values, the transformed vectors
     eigen_vals = np.absolute(eigen_vals)
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
+    U = eigen_vecs[sorting]
     D = np.diag(eigen_vals)
     kappa = max(eigen_vals) / min(eigen_vals)
     print("Kappa:\n", str(kappa))
@@ -152,13 +159,14 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # And so x = Vz, but only if you know true_energy beforehand
     true_unfolded_x = np.dot(v, z)
-
+    '''
     # Here we are rescaling the unknowns and redefining the response matrix
-    # First step is the multiply each column of Aij by the true distriutin x(ini)j
+    # First step is the multiply each column of Aij by the true distribution x(ini)j
     # Think this does that
     rescaled_response_matrix = detector_response_matrix * true_energy
 
     # Second step is define new unknowns w_j = xj/x(ini)j
+    # Gives the deviation of x from the initial MC input vector
     w_j = signal / true_energy
 
     # Third step is to rescale the equations to have error os +-1 always.
@@ -173,21 +181,25 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
     rescaled_u, rescaled_s, rescaled_v = np.linalg.svd(rescaled_response_matrix, full_matrices=True)
 
     rescaled_z = np.dot(rescaled_v.T, w_j)
+    rescaled_z = rescaled_z #* true_energy
     try:
         assert np.isclose(np.sum(rescaled_z - true_energy), 0.)
     except AssertionError:
-        print("Rescaled Equation is not correct, does not invert back to self")
+        print("--------------------------\nRescaled Equation is not correct, does not invert back to self\n")
+        print(rescaled_z)
     rescaled_d = np.dot(rescaled_u.T, signal)
 
     rescaled_z_i = rescaled_d / rescaled_s
     rescaled_unfolded = np.dot(rescaled_v, rescaled_z_i)
+    # From paper, to get back correctly nrmalized unfolded solution have to multiply unfolded w by xini. true_energy
+    rescaled_unfolded = rescaled_unfolded * true_energy
 
     print("Differences (Rescaled):")
     print(rescaled_unfolded - true_energy)
-
+    '''
     # Error propagation
 
-    return unfolded_signal, true_unfolded_x, rescaled_unfolded, d, s, z_i, rescaled_d, rescaled_s, rescaled_z_i
+    return unfolded_signal, true_unfolded_x, d, s, z_i
 
 
 def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):

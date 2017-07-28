@@ -108,19 +108,16 @@ def plot_error_stats(mean, std):
     plt.show()
 
 
-def plot_svd_parts(d, s, rescaled_d, rescaled_s, z):
+def plot_svd_parts(d, s, z):
     d = np.abs(d)
-    rescaled_d = np.abs(rescaled_d)
     binning = np.linspace(0, d.shape[0], d.shape[0]+1)
     bin_center = (binning[:-1] + binning[1:]) /2
 
     plt.hist(bin_center, weights=d, bins=binning, histtype='step', label="|D|")
-    plt.hist(bin_center, weights=rescaled_d, bins=binning, histtype='step', label=" Rescaled |D|")
     plt.legend(loc='best')
     plt.yscale('log')
     plt.show()
     plt.hist(bin_center, weights=s, bins=binning, histtype='step', label="S")
-    plt.hist(bin_center, weights=rescaled_s, bins=binning, histtype='step', label=" Rescaled S")
     plt.legend(loc='best')
     plt.yscale('log')
     plt.show()

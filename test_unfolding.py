@@ -244,10 +244,10 @@ def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20
     if plot:
         evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results[0], energies_return)
         evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results[2], energies_return)
-        evaluate_unfolding.plot_svd_parts(svd_unfolding_results[3], svd_unfolding_results[4], svd_unfolding_results[6], svd_unfolding_results[7], svd_unfolding_results[5])
+        evaluate_unfolding.plot_svd_parts(svd_unfolding_results[2], svd_unfolding_results[3], svd_unfolding_results[4])
 
 if __name__ == "__main__":
-    test_svd_unfolding(1347, plot=True)
+    test_svd_unfolding(1347, plot=False)
     test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, num_datasets=20)
     test_multiple_datasets_std(1347, method=svd_unfolding, num_datasets=20)
     test_detector_response_matrix_unfolding(1347, plot=False)
