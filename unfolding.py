@@ -57,19 +57,27 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     # So use for loop for it, setting everything after the cutoff to 0
     # If done right, eigenvalue cutoff will have less events, but total should have same amount
     # So the eigenvalues are the coefficeints of the c and/or b values, the transformed vectors
+    # Can fix the decrease in number of events by multiply by the (true_number / detected number)
+    # Problem with that fix though is that it of course gives back the same number, mathematically it has to
     eigen_vals = np.absolute(eigen_vals)
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
     U = eigen_vecs[sorting]
+    #U = eigen_vecs
     D = np.diag(eigen_vals)
     kappa = max(eigen_vals) / min(eigen_vals)
     print("Kappa:\n", str(kappa))
 
+    assert(np.isclose((U * eigen_vals).all(), detector_matrix.all()))
+
     sum_signal_per_chamber = np.sum(signal, axis=1)  # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
     x_vector_true = np.histogram(true_energy, bins=detector_matrix.shape[0])
-    c = np.dot(U.T, y_vector[0])
-    b = np.dot(U.T, x_vector_true[0])
+
+    inv_U = np.linalg.inv(U)
+
+    c = np.dot(inv_U, y_vector[0])
+    b = np.dot(inv_U, x_vector_true[0])
     d_b = np.dot(D, b)
 
     # Now to do the unfolding by dividing coefficients by the eigenvalues in D to get b_j
@@ -78,13 +86,27 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
         # Cutting the number of values in half, just to test it
         if cutoff:
             if j < (D.shape[0] / 2):
+                print(D[j, j])
                 b_j[j] = coefficient / D[j, j]
+            else:
+                b_j[j] = 0.0
         else:
             b_j[j] = coefficient / D[j, j]
     unfolded_x = np.dot(U, b_j)
+    unfolded_x_other = np.dot(b_j, U)
+    unfolded_multiplied = unfolded_x * (x_vector_true[0] / unfolded_x)
+    unfolded_multiplied2 = unfolded_x_other * (x_vector_true[0] / unfolded_x_other)
     print(unfolded_x)
+    print("Difference (U * b_j):")
+    print(unfolded_x - x_vector_true[0])
+    print("Difference (b_j * U):")
+    print(unfolded_x_other - x_vector_true[0])
+    print("Difference (Multiplied):")
+    print(unfolded_multiplied - x_vector_true[0])
+    print("Difference (Multiplied2):")
+    print(unfolded_multiplied2 - x_vector_true[0])
 
-    return eigen_vals, eigen_vecs
+    return eigen_vals, U, unfolded_x, unfolded_x_other, unfolded_multiplied, unfolded_multiplied2
 
 
 def matrix_inverse_unfolding(signal, detector_response_matrix):
@@ -159,6 +181,7 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # And so x = Vz, but only if you know true_energy beforehand
     true_unfolded_x = np.dot(v, z)
+    assert np.isclose(true_unfolded_x.all(), true_energy.all())
     '''
     # Here we are rescaling the unknowns and redefining the response matrix
     # First step is the multiply each column of Aij by the true distribution x(ini)j
