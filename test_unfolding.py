@@ -254,12 +254,77 @@ def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20
         evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results[2], energies_return)
         evaluate_unfolding.plot_svd_parts(svd_unfolding_results[2], svd_unfolding_results[3], svd_unfolding_results[4])
 
+
+def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_col=20, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 500)
+    below_zero = energies < 1.0
+    energies[below_zero] = 1.0
+
+    # TODO: Fill rectangular matrix correct, currently making square matrix with extra zeros
+
+    def get_response_matrix():
+        A = np.zeros((num_row, num_col))
+        A[0, 0] = 1. - epsilon
+        A[0, 1] = epsilon
+        A[-1, -1] = 1. - epsilon
+        A[-1, -2] = epsilon
+        for i in range(min(num_row, num_col))[1:-1]:
+            A[i, i] = 1. - 2. * epsilon
+            A[i, i + 1] = epsilon
+            A[i, i - 1] = epsilon
+        return A
+
+    def get_unbalance_response_matrix(norm='column'):
+        A = np.zeros((num_row, num_col))
+        A[0, 0] = 1.
+        A[-1, -1] = 1.
+        for i in range(min(num_row, num_col))[1:-1]:
+            subtract = np.random.random()
+            A[i, i] = 1. - subtract
+            if norm == 'column':
+                A[i, i + 1] = 1. - (1. - subtract / 2.)
+                A[i, i - 1] = 1. - (1. - subtract / 2.)
+            elif norm == 'row':
+                A[i + 1, i] = 1. - (1. - subtract / 2.)
+                A[i - 1, i] = 1. - (1. - subtract / 2.)
+        if norm == 'column':
+            A = A / A.sum(axis=0, keepdims=True)
+        else:
+            A = A / A.sum(axis=1, keepdims=True)
+        return A
+
+    detector_response_matrix = get_response_matrix()
+    col_norm_matrix = get_unbalance_response_matrix()
+    row_norm_matrix = get_unbalance_response_matrix('row')
+    y_vector = np.histogram(energies, bins=min(num_row, num_col))
+    detected_signal = np.dot(y_vector[0], detector_response_matrix)
+    col_detected_signal = np.dot(y_vector[0], col_norm_matrix)
+    row_detected_signal = np.dot(y_vector[0], row_norm_matrix)
+    col_unfolding_results = svd_unfolding(col_detected_signal, energies, col_norm_matrix)
+    row_unfolding_results = svd_unfolding(row_detected_signal, energies,  row_norm_matrix)
+    matrix_unfolding_results = svd_unfolding(detected_signal, energies,  detector_response_matrix)
+    if epsilon == 0.0:
+        assert y_vector[0].all() == matrix_unfolding_results[0].all()
+        assert y_vector[0].all() == col_unfolding_results[0].all()
+        assert y_vector[0].all() == row_unfolding_results[0].all()
+    if plot:
+        evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_unfolding_results[0], energies, num_bins=min(num_row, num_col))
+        print("True x: " + str(y_vector[0]))
+        print("Difference: " + str(y_vector[0] - matrix_unfolding_results[0]))
+        print("Difference: " + str(y_vector[0] - col_unfolding_results[0]))
+        print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
+
 if __name__ == "__main__":
     test_svd_unfolding(1347, plot=False)
+    #test_epsilon_svd_unfolding(1347, plot=False)
     #test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, num_datasets=20)
     #test_multiple_datasets_std(1347, method=svd_unfolding, num_datasets=20)
     #test_detector_response_matrix_unfolding(1347, plot=False)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
+    #test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
+    #test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
     #test_identity_response_matrix_unfolding(1347, plot=False)
     #test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=False)
     #test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=False)

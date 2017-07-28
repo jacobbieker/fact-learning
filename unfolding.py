@@ -186,6 +186,7 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
     unfolded_signal = np.dot(v, z_i)
     print("Differences:")
     print(unfolded_signal - true_energy)
+    print(np.sum(unfolded_signal))
 
     # And so x = Vz, but only if you know true_energy beforehand
     true_unfolded_x = np.dot(v, z)
