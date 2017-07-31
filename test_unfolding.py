@@ -129,7 +129,7 @@ def test_detector_response_matrix_unfolding(random_state=None, noise=True, smear
         y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
         print("True x: " + str(y_vector[0]))
         print("Difference: " + str(y_vector[0] - matrix_inverse_unfolding_results[0]))
-        evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_inverse_unfolding_results[0], energies_return)
+        evaluate_unfolding.plot_unfolded_vs_true(matrix_inverse_unfolding_results[0], energies_return, errors=matrix_inverse_unfolding_results[1], title="Matrix Unfolding")
 
 
 def test_multiple_datasets_std(random_state=None, method=matrix_inverse_unfolding, num_datasets=20, num_bins=20,
@@ -215,13 +215,13 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, cutoff=5
     if plot:
         evaluate_unfolding.plot_eigenvalue_coefficients(true, folded, measured)
         # evaluate_unfolding.plot_eigenvalues(eigenvalues, eigenvectors, n_dims=detector_matrix.shape[0])
-        evaluate_unfolding.plot_unfolded_vs_true(true_hits, eigenvalue_cutoff_results[2], energies_return,
+        evaluate_unfolding.plot_unfolded_vs_true(eigenvalue_cutoff_results[2], energies_return, errors=eigenvalue_cutoff_results[6],
                                                  title="Unfolding X")
-        evaluate_unfolding.plot_unfolded_vs_true(true_hits, eigenvalue_cutoff_results[3], energies_return,
+        evaluate_unfolding.plot_unfolded_vs_true(eigenvalue_cutoff_results[3], energies_return,errors=eigenvalue_cutoff_results[6],
                                                  title="Unfolding X Other")
-        evaluate_unfolding.plot_unfolded_vs_true(true_hits, eigenvalue_cutoff_results[4], energies_return,
+        evaluate_unfolding.plot_unfolded_vs_true(eigenvalue_cutoff_results[4], energies_return,errors=eigenvalue_cutoff_results[6],
                                                  title="Unfolding True")
-        evaluate_unfolding.plot_unfolded_vs_true(true_hits, eigenvalue_cutoff_results[5], energies_return,
+        evaluate_unfolding.plot_unfolded_vs_true(eigenvalue_cutoff_results[5], energies_return,errors=eigenvalue_cutoff_results[6],
                                                  title="Unfolding True 2")
 
 
@@ -259,7 +259,7 @@ def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20
     print(np.sum(svd_unfolding_results[0]))
 
     if plot:
-        evaluate_unfolding.plot_unfolded_vs_true(true_hits, svd_unfolding_results[0], energies_return,
+        evaluate_unfolding.plot_unfolded_vs_true(svd_unfolding_results[0], energies_return,
                                                  title="SVD Unfolding")
         evaluate_unfolding.plot_svd_parts(svd_unfolding_results[1], svd_unfolding_results[2], svd_unfolding_results[3])
 
@@ -329,13 +329,13 @@ def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_c
 
 
 if __name__ == "__main__":
-    test_svd_unfolding(1347, plot=True)
+    test_svd_unfolding(1347, plot=False)
     #    test_epsilon_svd_unfolding(1347, plot=True)
     test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, num_datasets=20)
     test_multiple_datasets_std(1347, method=svd_unfolding, num_datasets=20)
     test_detector_response_matrix_unfolding(1347, plot=True)
     # test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
+    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
     # test_identity_response_matrix_unfolding(1347, plot=False)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)

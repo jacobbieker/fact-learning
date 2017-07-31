@@ -128,7 +128,7 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
 
     unf_pdf_sigma = (unfolded_x - x_vector_true[0]) / sigma_x_unf
 
-    return eigen_vals, U, unfolded_x, unfolded_x_other, unfolded_multiplied, unfolded_multiplied2
+    return eigen_vals, U, unfolded_x, unfolded_x_other, unfolded_multiplied, unfolded_multiplied2, sigma_x_unf
 
 
 def matrix_inverse_unfolding(signal, detector_response_matrix):

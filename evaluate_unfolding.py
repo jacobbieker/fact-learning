@@ -19,21 +19,19 @@ def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
     plt.show()
 
 
-def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20, title=None):
+def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
     binning = np.linspace(min(energies), max(energies), num_bins+1)
     bin_width = (binning[1:] - binning[:-1]) / 2.
     bin_center = (binning[:-1] + binning[1:]) / 2.
     true_hits = np.histogram(energies, bins=binning)
-    print(true_hits)
-    print(len(unfolded_vector))
-    print(len(bin_center))
-    # Create the same number of points within each bin from the unfolded_vector, so...
+    if errors is not None:
+        plt.errorbar(bin_center, unfolded_vector, xerr=bin_width, yerr=errors, fmt='.', label="Unfolding Error")
+
     plt.hist(bin_center, weights=true_hits[0], bins=binning, normed=False,
              label="True Energy", histtype='step')
     plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
-    # y_values = np.histogram(unfolded_vector, bins=len(unfolded_vector))
     x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
     x_vector = powerlaw.pdf(x_pdf_space, 0.70)
     plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
