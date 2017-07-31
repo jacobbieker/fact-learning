@@ -19,7 +19,7 @@ def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
     plt.show()
 
 
-def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20):
+def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
     binning = np.linspace(min(energies), max(energies), num_bins+1)
@@ -38,7 +38,10 @@ def plot_unfolded_vs_true(true_vector, unfolded_vector, energies, num_bins=20):
     x_vector = powerlaw.pdf(x_pdf_space, 0.70)
     plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
     # plt.errorbar(unfolded_vector, y=y_values[0], yerr=sigma_x_unf)
-    plt.title("Number of Particles: " + str(energies.shape[0]))
+    if not title:
+        plt.title("Number of Particles: " + str(energies.shape[0]))
+    else:
+        plt.title(str(title))
     plt.legend(loc='best')
     plt.xscale('log')
     plt.yscale('log')

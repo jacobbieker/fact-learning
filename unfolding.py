@@ -114,6 +114,20 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     print("Difference (Multiplied2):")
     print(unfolded_multiplied2 - x_vector_true[0])
 
+    # Error propagation
+
+    # Get inverse of truncated "response matrix" U * eigenvalues
+    inv_detector_response_matrix = np.linalg.inv(U * eigen_vals)
+    V_y = np.diag(y_vector[0])
+    V_x_est = np.dot(inv_detector_response_matrix, np.dot(V_y, inv_detector_response_matrix.T))
+    sigma_x_unf = np.sqrt(np.diag(V_x_est))
+
+    # print('x_unf   \t\t= %s' % str(np.round(x_vector_unf, 2)))
+    # print('simga_x_unf \t\t= %s' % str(np.round(sigma_x_unf, 2)))
+    # print('(unf - pdf) / sigma_x \t= %s ' % str(np.round((x_vector_unf - x_vector) / sigma_x_unf, 2)))
+
+    unf_pdf_sigma = (unfolded_x - x_vector_true[0]) / sigma_x_unf
+
     return eigen_vals, U, unfolded_x, unfolded_x_other, unfolded_multiplied, unfolded_multiplied2
 
 
