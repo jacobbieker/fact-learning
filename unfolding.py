@@ -151,29 +151,25 @@ def matrix_inverse_unfolding(signal, detector_response_matrix):
     return x_vector_unf, sigma_x_unf, V_x_est, V_y, unf_pdf_sigma
 
 
-def svd_unfolding(signal, true_energy, detector_response_matrix):
+def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
-    #print("U:\n" + str(u))
-    #print("S:\n" + str(s))
-    #print("V:\n" + str(v))
-    # plt.imshow(s, interpolation="nearest", origin="upper")
-    # plt.colorbar()
-    # plt.title("S Matrix")
-    # plt.xscale('log')
-    # plt.yscale('log')
-    # plt.show()
 
     if signal.ndim == 2:
         sum_signal_per_chamber = np.sum(signal, axis=1)
         signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
 
-    if true_energy.ndim == 2:
-        sum_true_energy = np.sum(true_energy, axis=1)
-        true_energy = np.histogram(sum_true_energy, bins=detector_response_matrix.shape[0])[0]
+    singular_values = np.diag(s)
+    new_s = np.zeros_like(singular_values)
+    if cutoff:
+        for j, value in singular_values:
+            if j < cutoff:
+                new_s[j] = singular_values[j]
+            else:
+                new_s[j] = 0.0
+        s = np.diag(new_s)
 
     # So the USV*x = USV*true_energy = signal
     # So need to undo that
-    z = np.dot(v.T, true_energy)
     d = np.dot(u.T, signal)
 
     # d_i = s_iz_i so z_i = d_i/s_i
@@ -183,13 +179,8 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # Now do it with V to get the unfolded distrubtion
     unfolded_signal = np.dot(z_i, v)
-    print("Differences:")
-    print(unfolded_signal - true_energy)
-    print(np.sum(unfolded_signal))
 
     # And so x = Vz, but only if you know true_energy beforehand
-    true_unfolded_x = np.dot(v, z)
-    assert np.isclose(true_unfolded_x.all(), true_energy.all())
     '''
     # Here we are rescaling the unknowns and redefining the response matrix
     # First step is the multiply each column of Aij by the true distribution x(ini)j
@@ -230,7 +221,7 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
     '''
     # Error propagation
 
-    return unfolded_signal, true_unfolded_x, d, s, z_i
+    return unfolded_signal, d, s, z_i
 
 
 def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
