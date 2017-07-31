@@ -182,7 +182,7 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
         z_i[index] = d[index] / s[index]
 
     # Now do it with V to get the unfolded distrubtion
-    unfolded_signal = np.dot(v, z_i)
+    unfolded_signal = np.dot(z_i, v)
     print("Differences:")
     print(unfolded_signal - true_energy)
     print(np.sum(unfolded_signal))
