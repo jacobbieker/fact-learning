@@ -173,7 +173,6 @@ def svd_unfolding(signal, true_energy, detector_response_matrix):
 
     # So the USV*x = USV*true_energy = signal
     # So need to undo that
-    # Need to bin tru energy and signal
     z = np.dot(v.T, true_energy)
     d = np.dot(u.T, signal)
 

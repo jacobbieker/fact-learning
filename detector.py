@@ -45,6 +45,9 @@ class Detector:
     response_bins: int
         Number of bins to make the response matrix
 
+    rectangular_bins: int
+        Number of bins to make the long side of the response matrix, if the matrix is not rectangular
+
     Attributes
     ----------
         ???
@@ -58,6 +61,7 @@ class Detector:
                  loss_rate=10.,
                  noise=0.,
                  response_bins=20,
+                 rectangular_bins=None,
                  distribution="binomial",
                  smearing=True,
                  make_noise=True,
@@ -72,6 +76,7 @@ class Detector:
         self.loss_rate = loss_rate
         self.noise = noise
         self.response_bins=response_bins
+        self.rectangular_bins = rectangular_bins
         self.smearing = smearing
         self.distribution = distribution
         self.make_noise = make_noise
@@ -246,6 +251,9 @@ class Detector:
         if self.n_chambers < 2:
             raise ValueError("Number of Chambers must be larger than 2")
         num_bins = self.response_bins
+        if self.rectangular_bins:
+            num_rows = self.rectangular_bins
+            num_col = self.response_bins
         # A = np.zeros((self.n_chambers, self.n_chambers))
 
         # If Acceptance is less than 1, than the normalization should not add up to 1 in that row
@@ -256,14 +264,12 @@ class Detector:
         # must be normalized at some point, either row or column, or both, or some other way, but must be normalized
         # Normalized = percentage = probabllilty
         # Make a table, per particle: ID | Observable | True Energy and make 2D histogram of Observable vs True Energy
-        #print(original_energy_distribution)
         sum_true_energy_per_particle = original_energy_distribution
         sum_signal = np.sum(signal, axis=1)
-
-        #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False,
-        #                                 bins=self.n_chambers)
-        #A, xedge, yedge = np.histogram2d(sum_signal_per_chamber, sum_chamber_per_chamber, normed=False)
-        A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=False, bins=num_bins)
+        if not self.rectangular_bins:
+            A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=False, bins=num_bins)
+        else:
+            A, xedge, yedge = np.histogram2d(sum_true_energy_per_particle, sum_signal, normed=False, bins=[num_rows, num_col])
 
         # Normalize based off of the row
 
