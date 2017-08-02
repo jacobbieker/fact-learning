@@ -72,7 +72,7 @@ def plot_eigenvalues(eigenvalues, eigenvectors, n_dims):
     plt.show()
 
 
-def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured_coefficients):
+def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured_coefficients, error):
     true_b = true_coefficients
     folded_b_j = folded_coefiicient
     measured_c = measured_coefficients
@@ -90,6 +90,7 @@ def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured
 
     plt.hist(bin_center, weights=true_b, bins=binning, histtype='step', label="True B")
     plt.hist(bin_center, weights=folded_b, bins=binning, histtype='step', label="Folded B_j")
+    plt.axhline(y=np.mean(error), xmin=0, xmax=1.0)
 
     plt.xlabel("Index j")
     plt.title("Coeff of true and folded distributions")

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import powerlaw
+import scipy
 import numdifftools as nd
 
 import evaluate_unfolding
@@ -92,7 +93,7 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
                 print(D[j, j])
                 b_j[j] = coefficient / D[j, j]
             else:
-                b_j[j] = 0.0
+                b_j[j] = 0.00
         else:
             b_j[j] = coefficient / D[j, j]
     unfolded_x = np.dot(U, b_j)
@@ -248,7 +249,32 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
 
     hessian_detector = nd.Hessian(detector_response_matrix)
 
-    def LLH(f, data):
-        return np.sum(np.log(f * powerlaw.pdf(data) + (1 - f) * powerlaw.pdf(data)))
+    def likelihood(f, actual_observed, detector_matrix, tau, priors):
+        return
+
+    def log_likelihood(f, actual_observed, detector_matrix, tau, C, priors):
+        before_regularize = []
+        for i in range(len(actual_observed) - 1):
+            # Not sure if this is correct change from the product one to this, if the summing over the ith column in A is what is supposed to be
+            # the case, or the ith row, or something else
+            # Mathy, it should be Sum(ln(gi!) - gi*ln(f(x)) - fi(x) * the rest
+            before_regularize.append((np.log(np.math.factorial(actual_observed[i])) - actual_observed[i]*np.log(np.sum(detector_matrix[:,i]) * f) + (detector_matrix * f)))
+        likelihood_log = before_regularize + (0.5 * tau * f.T * C.T * np.identity(C.shape[0]) * C * f)
+        # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
+        return likelihood_log
+
+    def gradient(f, actual_observed, detector_matrix, tau, C_prime):
+        # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
+        inside_gradient = np.zeros_like(f)
+        h = np.ndarray(shape=f.shape)
+        for k in range(f.shape[0]):
+            for i in range(detector_matrix.shape[0]):
+                inside_gradient[k,i] = (detector_matrix[i,k] - (actual_observed[i]*detector_matrix[i,k])/(detector_matrix[i,:]*f))
+            # I think this adds it too many times
+            h[k] = np.sum(inside_gradient[k]) + tau * np.sum(f*C_prime[k])
+        return h
+
+    def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime):
+        return
 
     raise NotImplementedError
