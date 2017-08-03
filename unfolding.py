@@ -277,6 +277,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime):
         H = np.ndarray(shape=f.shape)
         # Trying to get d^2S/df_kdf_l = Hk,l = This?
-        for i in range(f.shape[0]):
-            H = (actual_observed[i]*detector_matrix[i,k]*detector_matrix[i,l])/((np.sum(detector_matrix[i]*f))**2) + tau * C_prime[k,l]
+        for k in range(detector_matrix.shape[1]):
+            for l in range(detector_matrix.shape[1]):
+                for i in range(f.shape[0]):
+                    H = (actual_observed[i]*detector_matrix[i,k]*detector_matrix[i,l])/((np.sum(detector_matrix[i]*f))**2) + tau * C_prime[k,l]
         return H
