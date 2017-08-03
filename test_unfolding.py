@@ -19,6 +19,7 @@ def test_identity_response_matrix_unfolding(random_state=None, num_bins=20, plot
     inv_detector_matrix = np.linalg.inv(detector_matrix_col)
     sum_signal_per_chamber = np.dot(inv_detector_matrix, y_vector[0])
     sum_signal_per_chamber = np.ndarray.astype(sum_signal_per_chamber, np.int64)
+    llh_unfolding(sum_signal_per_chamber, y_vector[0], detector_matrix_col, tau=1)
 
     if plot:
         plt.bar(y_vector[1][:-1], y_vector[0], width=y_vector[1][1:], label="Y Vector")
@@ -361,6 +362,7 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
 
 if __name__ == "__main__":
     test_llh_unfolding(1347, tau=1, plot=False)
+    #test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)
     # test_epsilon_svd_unfolding(1347, plot=True)
     # test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
