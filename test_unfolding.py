@@ -328,14 +328,46 @@ def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_c
         print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
 
 
+def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, noise=True, smearing=True, plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 500)
+    below_zero = energies < 1.0
+    energies[below_zero] = 1.0
+
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=noise,
+                        smearing=smearing,
+                        resolution_chamber=1.,
+                        noise=0.,
+                        response_bins=num_bins,
+                        rectangular_bins=num_bins,
+                        random_state=random_state)
+
+    signal, true_hits, energies_return, detector_matrix = detector.simulate(
+        energies)
+
+    llh_unfolding_results = llh_unfolding(signal, energies_return, detector_matrix, tau=tau, unfolding=unfolding, num_bins=num_bins)
+
+    if true_hits.ndim == 2:
+        sum_true_energy = np.sum(true_hits, axis=1)
+        true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
+
+    if plot:
+        evaluate_unfolding.plot_unfolded_vs_true(llh_unfolding_results, energies_return,
+                                                 title="LLH Unfolding")
+
 if __name__ == "__main__":
-    test_svd_unfolding(1347, plot=False)
-    #    test_epsilon_svd_unfolding(1347, plot=True)
-    test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
-    test_multiple_datasets_std(1347, method=svd_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
-    test_detector_response_matrix_unfolding(1347, plot=True)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
-    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
+    test_llh_unfolding(1347, tau=1, plot=False)
+    # test_svd_unfolding(1347, plot=False)
+    # test_epsilon_svd_unfolding(1347, plot=True)
+    # test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
+    # test_multiple_datasets_std(1347, method=svd_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
+    # test_detector_response_matrix_unfolding(1347, plot=True)
+    # test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
+    # test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
     # test_identity_response_matrix_unfolding(1347, plot=False)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)

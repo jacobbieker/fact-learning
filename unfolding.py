@@ -1,10 +1,8 @@
 import numpy as np
 from scipy.stats import powerlaw
-import scipy
 import numdifftools as nd
-
-import evaluate_unfolding
-
+import math
+import matplotlib.pyplot as plt
 
 def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=None):
     U = eigen_vectors
@@ -239,7 +237,7 @@ def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     return unfolded_signal, d, s, z_i
 
 
-def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
+def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=True, num_bins=20):
     # If we need the Hessian, the Numdifftools should give it to us with this
 
     # Pretty sure should only need the response matrix Hessian, since that gives the curvature of the probabilities
@@ -252,33 +250,103 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, num_bins=20):
     def likelihood(f, actual_observed, detector_matrix, tau, priors):
         return
 
-    def log_likelihood(f, actual_observed, detector_matrix, tau, C, priors):
+    def calculate_C(data):
+        diagonal = np.zeros_like(data)
+
+        diagonal[0,0] = -1
+        #diagonal[-1,0] = -1
+        diagonal[-1,-1] = -1
+        #diagonal[0,-1] = -1
+        for i in range(diagonal.shape[0])[1:-1]:
+            diagonal[i, i] = -2
+            diagonal[i, i + 1] = 1
+            diagonal[i, i - 1] = 1
+        return diagonal
+
+    def log_likelihood(f, actual_observed, detector_matrix, tau, C):
+        print("Shape f:" + str(f.shape))
+        print("Shape detector_side: " + str(detector_matrix[:,5]))
+        print("Observed shape:" + str(actual_observed.shape))
         before_regularize = []
-        for i in range(len(actual_observed) - 1):
+        for i in range(len(actual_observed)):
             # Not sure if this is correct change from the product one to this, if the summing over the ith column in A is what is supposed to be
             # the case, or the ith row, or something else
             # Mathy, it should be Sum(ln(gi!) - gi*ln(f(x)) - fi(x) * the rest
-            before_regularize.append((np.log(np.math.factorial(actual_observed[i])) - actual_observed[i]*np.log(np.sum(detector_matrix[:,i]) * f) + (detector_matrix * f)))
-        likelihood_log = before_regularize + (0.5 * tau * f.T * C.T * np.identity(C.shape[0]) * C * f)
+            # Part One = ln(g_i!)
+            part_one = math.log(np.math.factorial(actual_observed[i]))
+            # Part Two = gi*ln((Af(x)_i)
+            part_two = actual_observed[i]*np.log(np.sum(detector_matrix[:,i]) * f)
+            #print("Shape part two: " + str(part_two.shape))
+            # Part Three = (Af(x)_i)
+            part_three = (detector_matrix[:,i] * f)
+            #print("Shape part three: " + str(part_three.shape))
+            #print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
+            before_regularize.append(part_one - part_two + part_three)
+        # Prior is the 1/2 * tau * f(x).T * C' * f(x)
+        prior = (0.5 * tau * f.T * C.T * np.identity(C.shape[0]) * C * f)
+        print(prior)
+        print(np.sum(before_regularize).shape)
+        likelihood_log = np.sum(before_regularize) + np.diag(prior)
+        print(likelihood_log)
         # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
         return likelihood_log
 
     def gradient(f, actual_observed, detector_matrix, tau, C_prime):
         # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
-        inside_gradient = np.zeros_like(f)
+        inside_gradient = np.zeros_like(detector_matrix)
         h = np.ndarray(shape=f.shape)
         for k in range(f.shape[0]):
             for i in range(detector_matrix.shape[0]):
-                inside_gradient[k,i] = (detector_matrix[i,k] - (actual_observed[i]*detector_matrix[i,k])/(detector_matrix[i,:]*f))
+                part_one = detector_matrix[i,k]
+                part_two = (actual_observed[i]*detector_matrix[i,k])
+                part_three = (detector_matrix[i,:]*f)
+                inside_gradient[k] = (part_one - part_two/part_three)
             # I think this adds it too many times
             h[k] = np.sum(inside_gradient[k]) + tau * np.sum(f*C_prime[k])
         return h
 
     def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime):
-        H = np.ndarray(shape=f.shape)
+        H = np.ndarray(shape=detector_matrix.shape)
         # Trying to get d^2S/df_kdf_l = Hk,l = This?
         for k in range(detector_matrix.shape[1]):
             for l in range(detector_matrix.shape[1]):
                 for i in range(f.shape[0]):
-                    H = (actual_observed[i]*detector_matrix[i,k]*detector_matrix[i,l])/((np.sum(detector_matrix[i]*f))**2) + tau * C_prime[k,l]
-        return H
+                    H[k,l] = (actual_observed[i]*detector_matrix[i,k]*detector_matrix[i,l])/((np.sum(detector_matrix[i]*f))**2) + tau * C_prime[k,l]
+
+        # Now the variance/error is the inverse of the Hessian, so might as well compute it here
+        print(H)
+        print(hessian_detector)
+        error = np.linalg.inv(H)
+        print(error)
+        return H, error
+
+    # Now to actually try to do the likelihood part
+    # First need to bin the true energy, same as the detector matrix currently
+    if signal.ndim == 2:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    if true_energy.ndim == 2:
+        sum_signal_per_chamber = np.sum(true_energy, axis=1)
+        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    else:
+        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
+
+    C = calculate_C(np.diag(true_energy))
+    likelihood_value = log_likelihood(true_energy, signal, detector_response_matrix, tau=tau, C=C)
+    fig = plt.figure()
+    xval = np.arange(0.0, likelihood_value.shape[0])
+    plt.plot(likelihood_value)
+    plt.show()
+    C_prime = C.T * np.identity(C.shape[0]) * C
+    gradient = gradient(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
+    hessian = hessian_matrix(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
+
+    # Now that likelihood is determined, either go with forward folding or unfolding
+    if unfolding:
+        # Now need gradient descent to find the most likely value
+        return
+    else:
+        # Forward folding occurs, using Wilks Theorem to fit curve to data
+        wilks_bins = 4
+
+        return
