@@ -3,6 +3,8 @@ from scipy.stats import powerlaw
 import numdifftools as nd
 import math
 import matplotlib.pyplot as plt
+import numpy
+
 
 def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=None):
     U = eigen_vectors
@@ -24,7 +26,7 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
         # Cutting the number of values in half, just to test it
         if cutoff:
             if j < cutoff:
-                #print(D[j, j])
+                # print(D[j, j])
                 b_j[j] = coefficient / D[j, j]
             else:
                 b_j[j] = 0.0
@@ -65,12 +67,12 @@ def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cut
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
     U = eigen_vecs[sorting]
-    #U = eigen_vecs
+    # U = eigen_vecs
     D = np.diag(eigen_vals)
     kappa = max(eigen_vals) / min(eigen_vals)
     print("Kappa:\n", str(kappa))
 
-    assert(np.isclose((U * eigen_vals).all(), detector_matrix.all()))
+    assert (np.isclose((U * eigen_vals).all(), detector_matrix.all()))
 
     sum_signal_per_chamber = np.sum(signal, axis=1)  # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=detector_matrix.shape[0])
@@ -237,7 +239,7 @@ def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     return unfolded_signal, d, s, z_i
 
 
-def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=True, num_bins=20):
+def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=True, plot=False, num_bins=20):
     # If we need the Hessian, the Numdifftools should give it to us with this
 
     # Pretty sure should only need the response matrix Hessian, since that gives the curvature of the probabilities
@@ -247,16 +249,36 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
 
     hessian_detector = nd.Hessian(detector_response_matrix)
 
-    def likelihood(f, actual_observed, detector_matrix, tau, priors):
-        return
+    def likelihood(f, actual_observed, detector_matrix, tau):
+        print(f)
+        print(actual_observed)
+        part_one = []
+        for index, gi in enumerate(actual_observed):
+            part_one.append(((np.sum(detector_matrix[:, index]) * f) ** actual_observed))
+        part_one = np.asarray(part_one)
+        print(part_one.shape)
+        print(part_one)
+        part_two = []
+        for gi in actual_observed:
+            part_two.append(np.math.factorial(gi))
+        part_two = np.asarray(part_two)
+        print(part_two.shape)
+        print(part_two)
+        part_three = np.exp(-1. * f)
+        print(part_three.shape)
+        print(part_three)
+        result = np.prod(part_one / part_two * part_three)
+        print(result)
+        return result
 
     def calculate_C(data):
         diagonal = np.zeros_like(data)
-
-        diagonal[0,0] = -1
-        #diagonal[-1,0] = -1
-        diagonal[-1,-1] = -1
-        #diagonal[0,-1] = -1
+        diagonal[0, 0] = -1
+        diagonal[0, 1] = 1
+        diagonal[-1, -2] = 1
+        # diagonal[-1,0] = -1
+        diagonal[-1, -1] = -1
+        # diagonal[0,-1] = -1
         for i in range(diagonal.shape[0])[1:-1]:
             diagonal[i, i] = -2
             diagonal[i, i + 1] = 1
@@ -265,7 +287,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
 
     def log_likelihood(f, actual_observed, detector_matrix, tau, C):
         print("Shape f:" + str(f.shape))
-        print("Shape detector_side: " + str(detector_matrix[:,5]))
+        print("Shape detector_side: " + str(detector_matrix.shape))
         print("Observed shape:" + str(actual_observed.shape))
         before_regularize = []
         for i in range(len(actual_observed)):
@@ -275,19 +297,21 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             # Part One = ln(g_i!)
             part_one = math.log(np.math.factorial(actual_observed[i]))
             # Part Two = gi*ln((Af(x)_i)
-            part_two = actual_observed[i]*np.log(np.sum(detector_matrix[:,i]) * f)
-            #print("Shape part two: " + str(part_two.shape))
+            part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
+            # print("Shape part two: " + str(part_two.shape))
             # Part Three = (Af(x)_i)
-            part_three = (detector_matrix[:,i] * f)
-            #print("Shape part three: " + str(part_three.shape))
-            #print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
+            # TODO Check this ordering of i, is correct, also in Part Two
+            part_three = (np.dot(detector_matrix, f)[i])
+            # print("Shape part three: " + str(part_three.shape))
+            # print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
             before_regularize.append(part_one - part_two + part_three)
         # Prior is the 1/2 * tau * f(x).T * C' * f(x)
         prior = (0.5 * tau * f.T * C.T * np.identity(C.shape[0]) * C * f)
-        print(prior)
-        print(np.sum(before_regularize).shape)
-        likelihood_log = np.sum(before_regularize) + np.diag(prior)
+        # print(prior)
+        print(len(before_regularize))
+        likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
         print(likelihood_log)
+        # print(max(likelihood_log))
         # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
         return likelihood_log
 
@@ -297,12 +321,13 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         h = np.ndarray(shape=f.shape)
         for k in range(f.shape[0]):
             for i in range(detector_matrix.shape[0]):
-                part_one = detector_matrix[i,k]
-                part_two = (actual_observed[i]*detector_matrix[i,k])
-                part_three = (detector_matrix[i,:]*f)
-                inside_gradient[k] = (part_one - part_two/part_three)
+                part_one = detector_matrix[i, k]
+                part_two = (actual_observed[i] * detector_matrix[i, k])
+                part_three = np.sum((detector_matrix[i, :] * f))
+                # print("Sum of Ai,j and f: " + str(part_three))
+                inside_gradient[k] = (part_one - part_two / part_three)
             # I think this adds it too many times
-            h[k] = np.sum(inside_gradient[k]) + tau * np.sum(f*C_prime[k])
+            h[k] = np.sum(inside_gradient[k]) + tau * np.sum(f * C_prime[k, :])
         return h
 
     def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime):
@@ -311,17 +336,18 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         for k in range(detector_matrix.shape[1]):
             for l in range(detector_matrix.shape[1]):
                 for i in range(f.shape[0]):
-                    H[k,l] = (actual_observed[i]*detector_matrix[i,k]*detector_matrix[i,l])/((np.sum(detector_matrix[i]*f))**2) + tau * C_prime[k,l]
+                    top_part = actual_observed[i] * detector_matrix[i, k] * detector_matrix[i, l]
+                    bottom_part = np.sum(detector_matrix[i, :] * f) ** 2
+                    prior = tau * C_prime[k, l]
+                    H[k, l] = np.sum(top_part / bottom_part) + prior
 
         # Now the variance/error is the inverse of the Hessian, so might as well compute it here
-        print(H)
-        print(hessian_detector)
         error = np.linalg.inv(H)
-        print(error)
         return H, error
 
     # Now to actually try to do the likelihood part
     # First need to bin the true energy, same as the detector matrix currently
+
     if signal.ndim == 2:
         sum_signal_per_chamber = np.sum(signal, axis=1)
         signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
@@ -332,15 +358,28 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
 
     C = calculate_C(np.diag(true_energy))
+    # not_log_like = likelihood(true_energy, signal, detector_response_matrix, tau)
+    # plt.plot(not_log_like)
+    # plt.show()
     likelihood_value = log_likelihood(true_energy, signal, detector_response_matrix, tau=tau, C=C)
-    fig = plt.figure()
-    xval = np.arange(0.0, likelihood_value.shape[0])
-    plt.plot(likelihood_value)
-    plt.show()
+    better_likelihood = log_likelihood(true_energy, true_energy, np.identity(true_energy.shape[0]), tau, C)
+    print("Difference between Perfect Detector - Non Perfect one: " + str(better_likelihood - likelihood_value))
+    #    fig = plt.figure()
+    #    xval = np.arange(0.0, likelihood_value.shape[0])
+    if plot:
+        plt.plot(likelihood_value)
+        plt.title("Log-Likelihood")
+        plt.xlabel("Bin Number")
+        plt.ylabel("Likelihood")
+        # plt.yscale('log')
+        plt.show()
     C_prime = C.T * np.identity(C.shape[0]) * C
     gradient = gradient(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
+    print("Gradient Shape: " + str(gradient.shape))
+    print("Gradient: " + str(gradient))
     hessian = hessian_matrix(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
-
+    print("Hessian Shape: " + str(hessian[0].shape))
+    # print("Hessian: " + str(hessian[0]))
     # Now that likelihood is determined, either go with forward folding or unfolding
     if unfolding:
         # Now need gradient descent to find the most likely value

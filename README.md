@@ -53,7 +53,7 @@ Tasks
 
 				- Use the implemented LLH (gradient, Hesse-Matrix) and try to solve it with scipy.optimize.minimize
 
-				- Calculate the errors using the Hesse Matrix
+				- Calculate the errors using the Hesse Matrix - check
 
 				- Try to do a scan (build the LLH landscape) and use Wilk"s theorem to do obtain the errors --> unfold only ~4 Bins to get the dimensionality low
 
