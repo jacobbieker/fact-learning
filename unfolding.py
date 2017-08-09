@@ -370,7 +370,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         #print("Delta Gradient shape: "+ str(gradient.shape))
         #print("Hess matirx shape: "+ str(hessian.shape))
         # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
-        return np.dot((-1. * np.linalg.inv(hessian)), gradient)
+        return 0.01 * np.dot((-1. * np.linalg.inv(hessian)), gradient)
         # Now to actually try to do the likelihood part
 
     # First need to bin the true energy, same as the detector matrix currently
@@ -439,7 +439,10 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print("Part Three: " + str(part_three))
             # This is currently the log likeliehood after the change, so it should be a single number and very negative
             new_likelihood = part_one + part_two + part_three
+            print(new_likelihood - old_likliehood)
             print(new_likelihood)
+            # Minimization check here, if the new value is larger than the old one, going wrong way, so break the loop
+            # Could try different step sizes I guess
             if new_likelihood < old_likliehood:
                 new_true = new_true + change_in_a
             else:
@@ -461,6 +464,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((new_true / true_energy) - (signal / true_energy)))
         print("(Real_True / Signal:\n" + str(true_energy / signal))
         print("(New True / Signal): \n" + str(new_true / signal))
+        print(iterations)
         return
     else:
         # Forward folding occurs, using Wilks Theorem to fit curve to data
