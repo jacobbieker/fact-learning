@@ -337,15 +337,15 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                 prior = tau * np.sum(C_prime[:, k] * f)
             else:
                 prior = 0
-            print("Compare prior - np sum vs way in other one---------------------------------------------------------")
-            print(prior - np.sum(inside_gradient[k]))
-            print(prior - possion_part)
+            #print("Compare prior - np sum vs way in other one---------------------------------------------------------")
+            #print(prior - np.sum(inside_gradient[k]))
+            #print(prior - possion_part)
             h[k] = prior - possion_part # np.sum(inside_gradient[k])
         return h
 
     def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
         H = np.zeros_like(detector_matrix)
-        print(H.shape)
+        #print(H.shape)
         # Trying to get d^2S/df_kdf_l = Hk,l = This?
         for k in range(H.shape[0]):
             for l in range(H.shape[0]):
@@ -367,8 +367,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         return H, error
 
     def delta_a(hessian, gradient):
-        print("Delta Gradient shape: "+ str(gradient.shape))
-        print("Hess matirx shape: "+ str(hessian.shape))
+        #print("Delta Gradient shape: "+ str(gradient.shape))
+        #print("Hess matirx shape: "+ str(hessian.shape))
         # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
         return np.dot((-1. * np.linalg.inv(hessian)), gradient)
         # Now to actually try to do the likelihood part
@@ -410,9 +410,6 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     print("Gradient Shape: " + str(gradient.shape))
     print("Gradient: " + str(gradient))
     hessian = hessian_matrix(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
-    delt_a = delta_a(hessian[0], gradient)
-    print("Delta a shape: " + str(delt_a.shape))
-    print("Delta a: " + str(delt_a))
     print("Hessian Shape: " + str(hessian[0].shape))
     print("Hessian Diagonal: " + str(np.diag(hessian[0])))
     #    print("Difftools Hessian Diagonal: " + str(np.diag(hessian_detector)))
@@ -424,17 +421,19 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         gradient_update = gradient
         hessian_update = hessian[0]
         print(change_in_a)
-        while 0.5 < change_in_a.all() or change_in_a.all() < -0.5:
-            part_one = log_likelihood(new_true + change_in_a[0], signal, detector_matrix=detector_response_matrix,
+        iterations = 0
+        while 0.5 < change_in_a.any() or change_in_a.any() < -0.5:
+            print("Number of Iterations: " + str(iterations))
+            part_one = log_likelihood(new_true, signal, detector_matrix=detector_response_matrix,
                                       tau=tau, C=C, regularized=regularized)
             print("Part One: " + str(part_one))
-            part_two = np.dot((change_in_a).T, gradient_update)
+            part_two = change_in_a.T * gradient_update # np.dot(change_in_a.T, gradient_update)
             print("Part Two: " + str(part_two))
             print("Change in A Transposed: " + str(change_in_a.T))
             print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
             print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
             print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
-            part_three = 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
+            part_three = 0.5 * np.dot(change_in_a.T, hessian_update) * change_in_a #np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
             new_true = part_one + part_two + part_three
             print(new_true)
@@ -444,6 +443,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             hessian_update, hesian_error = hessian_matrix(new_true + change_in_a[0], signal, detector_matrix=detector_response_matrix,
                                             tau=tau, C_prime=C_prime, regularized=regularized)
             change_in_a = delta_a(hessian_update, gradient_update)
+            iterations += 1
 
             print(change_in_a)
         print("Difference between real true and new true (Real True - New True): " + str(true_energy - new_true))
