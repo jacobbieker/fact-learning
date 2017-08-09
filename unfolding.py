@@ -442,6 +442,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print(new_likelihood)
             if new_likelihood < old_likliehood:
                 new_true = new_true + change_in_a
+            else:
+                break
             print(new_true - signal)
             # Basically, if the new_true value, the value we are trying to minimize, then if it is larger, we should follow that and change the
             # "true" distribution accordingly in that direction by the change in a, then rerun the iteration...
@@ -454,7 +456,9 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             iterations += 1
 
             print(change_in_a)
-        print("Difference between real true and new true (Real True - New True): " + str(true_energy - new_true))
+        print("Difference between real true and new true (New True/Real True):\n " + str(new_true / true_energy))
+        print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
+        print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((new_true / true_energy) - (signal / true_energy)))
         return
     else:
         # Forward folding occurs, using Wilks Theorem to fit curve to data
