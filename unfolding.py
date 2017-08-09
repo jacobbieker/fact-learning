@@ -421,20 +421,20 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         # Now need gradient descent to find the most likely value
         change_in_a = delta_a(hessian[0], gradient)
         new_true = true_energy
-        new_gradient = gradient
-        new_hessian = hessian
+        gradient_update = gradient
+        hessian_update = hessian[0]
         print(change_in_a)
         while 0.5 < change_in_a.all() or change_in_a.all() < -0.5:
             part_one = log_likelihood(new_true + change_in_a[0], signal, detector_matrix=detector_response_matrix,
                                       tau=tau, C=C, regularized=regularized)
             print("Part One: " + str(part_one))
-            part_two = np.dot((change_in_a).T, new_gradient)
+            part_two = np.dot((change_in_a).T, gradient_update)
             print("Part Two: " + str(part_two))
             print("Change in A Transposed: " + str(change_in_a.T))
-            print("First Dot: " + str(np.dot(change_in_a.T, new_hessian)))
-            print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, new_hessian), change_in_a)))
-            print("Reversed Second Dot: " + str(np.dot(np.dot(new_hessian, change_in_a.T), change_in_a)))
-            part_three = 0.5 * np.dot(np.dot(change_in_a.T, new_hessian), change_in_a)
+            print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
+            print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
+            print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
+            part_three = 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
             new_true = part_one + part_two + part_three
             print(new_true)
