@@ -422,25 +422,33 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         hessian_update = hessian[0]
         print(change_in_a)
         iterations = 0
+        new_likelihood = likelihood_value
         while 0.5 < change_in_a.any() or change_in_a.any() < -0.5:
+            old_likliehood = new_likelihood
             print("Number of Iterations: " + str(iterations))
             part_one = log_likelihood(new_true, signal, detector_matrix=detector_response_matrix,
                                       tau=tau, C=C, regularized=regularized)
             print("Part One: " + str(part_one))
-            part_two = change_in_a.T * gradient_update # np.dot(change_in_a.T, gradient_update)
+            part_two = np.dot(change_in_a.T, gradient_update)
             print("Part Two: " + str(part_two))
             print("Change in A Transposed: " + str(change_in_a.T))
             print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
             print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
             print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
-            part_three = 0.5 * np.dot(change_in_a.T, hessian_update) * change_in_a #np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
+            part_three = 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
-            new_true = part_one + part_two + part_three
-            print(new_true)
-            gradient_update = gradient_array(new_true + change_in_a[0], signal,
+            # This is currently the log likeliehood after the change, so it should be a single number and very negative
+            new_likelihood = part_one + part_two + part_three
+            print(new_likelihood)
+            if new_likelihood < old_likliehood:
+                new_true = new_true + change_in_a
+            print(new_true - signal)
+            # Basically, if the new_true value, the value we are trying to minimize, then if it is larger, we should follow that and change the
+            # "true" distribution accordingly in that direction by the change in a, then rerun the iteration...
+            gradient_update = gradient_array(new_true, signal,
                                              detector_matrix=detector_response_matrix, tau=tau, C_prime=C_prime,
                                              regularized=regularized)
-            hessian_update, hesian_error = hessian_matrix(new_true + change_in_a[0], signal, detector_matrix=detector_response_matrix,
+            hessian_update, hesian_error = hessian_matrix(new_true, signal, detector_matrix=detector_response_matrix,
                                             tau=tau, C_prime=C_prime, regularized=regularized)
             change_in_a = delta_a(hessian_update, gradient_update)
             iterations += 1
