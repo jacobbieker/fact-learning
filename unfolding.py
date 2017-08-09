@@ -459,6 +459,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         print("Difference between real true and new true (New True/Real True):\n " + str(new_true / true_energy))
         print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
         print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((new_true / true_energy) - (signal / true_energy)))
+        print("(Real_True / Signal:\n" + str(true_energy / signal))
+        print("(New True / Signal): \n" + str(new_true / signal))
         return
     else:
         # Forward folding occurs, using Wilks Theorem to fit curve to data
