@@ -482,8 +482,10 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                             x0=new_true,
                             args=(signal, detector_response_matrix, tau, C),
                             bounds=bounds,
-                            method='SLSQP')
+                            #method='SLSQP',
+                            )
         print(solution.x)
         print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
+        print(solution.success)
 
-        return
+        return solution.x, signal, true_energy

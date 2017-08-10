@@ -357,11 +357,12 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
         true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
 
     if plot:
+        evaluate_unfolding.plot_unfolded_vs_signal_vs_true(llh_unfolding_results[0], llh_unfolding_results[1], llh_unfolding_results[2])
         evaluate_unfolding.plot_unfolded_vs_true(llh_unfolding_results, energies_return,
                                                  title="LLH Unfolding")
 
 if __name__ == "__main__":
-    test_llh_unfolding(1347, tau=1, plot=False, regularized=False, unfolding=False)
+    test_llh_unfolding(1347, tau=1, plot=True, regularized=False, smearing=False, noise=False, unfolding=False)
     #test_llh_unfolding(np.random.RandomState(), tau=1, plot=False, regularized=True)
     #test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)
