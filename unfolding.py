@@ -475,17 +475,23 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         # Forward folding occurs, using Wilks Theorem to fit curve to data
         wilks_bins = 4
         new_true = np.ones(shape=true_energy.shape) * np.sum(true_energy)/len(true_energy)
+        # new_true = signal
         bounds = []
         for i in range(true_energy.shape[0]):
             bounds.append((0, np.sum(signal)))
+        cons = ({'type': 'eq', 'fun': lambda x: np.absolute(np.sum(x) - np.sum(new_true))})
         solution = minimize(fun=log_likelihood,
                             x0=new_true,
                             args=(signal, detector_response_matrix, tau, C),
                             bounds=bounds,
                             #method='SLSQP',
+                            #constraints=cons,
                             )
         print(solution.x)
         print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
+        print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
+        print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((solution.x / true_energy) - (signal / true_energy)))
         print(solution.success)
+        print(solution.message)
 
         return solution.x, signal, true_energy
