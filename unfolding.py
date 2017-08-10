@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import powerlaw
 import numdifftools as nd
+from scipy.optimize import minimize
 import math
 import matplotlib.pyplot as plt
 import numpy
@@ -250,6 +251,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
 
     hessian_detector = nd.Hessian(detector_response_matrix)
+    gradient_detector = nd.Gradient(detector_response_matrix)
 
     def likelihood(f, actual_observed, detector_matrix, tau):
         print(f)
@@ -370,7 +372,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         #print("Delta Gradient shape: "+ str(gradient.shape))
         #print("Hess matirx shape: "+ str(hessian.shape))
         # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
-        return 0.01 * np.dot((-1. * np.linalg.inv(hessian)), gradient)
+        return 0.01 * -1. * np.dot((np.linalg.inv(hessian)), gradient)
         # Now to actually try to do the likelihood part
 
     # First need to bin the true energy, same as the detector matrix currently
@@ -417,7 +419,9 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     if unfolding:
         # Now need gradient descent to find the most likely value
         change_in_a = delta_a(hessian[0], gradient)
-        new_true = true_energy
+        # Set to a uniform distribution now, basic power law later, if start too close to the correct one, might be cause of iteration problems
+        new_true = np.ones(shape=true_energy.shape) * np.sum(true_energy)/len(true_energy)
+        print(new_true)
         gradient_update = gradient
         hessian_update = hessian[0]
         print(change_in_a)
@@ -435,17 +439,18 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
             print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
             print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
-            part_three = 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
+            part_three = 0#0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
             # This is currently the log likeliehood after the change, so it should be a single number and very negative
-            new_likelihood = part_one + part_two + part_three
-            print(new_likelihood - old_likliehood)
+            new_likelihood = (part_one + part_two + part_three)
+            print("New vs old: " + str(new_likelihood - old_likliehood))
             print(new_likelihood)
             # Minimization check here, if the new value is larger than the old one, going wrong way, so break the loop
             # Could try different step sizes I guess
             if new_likelihood < old_likliehood:
                 new_true = new_true + change_in_a
             else:
+                print("BREAKING AFTER " + str(iterations) + " ITERATIONS")
                 break
             print(new_true - signal)
             # Basically, if the new_true value, the value we are trying to minimize, then if it is larger, we should follow that and change the
@@ -469,5 +474,16 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     else:
         # Forward folding occurs, using Wilks Theorem to fit curve to data
         wilks_bins = 4
+        new_true = np.ones(shape=true_energy.shape) * np.sum(true_energy)/len(true_energy)
+        bounds = []
+        for i in range(true_energy.shape[0]):
+            bounds.append((0, np.sum(signal)))
+        solution = minimize(fun=log_likelihood,
+                            x0=new_true,
+                            args=(signal, detector_response_matrix, tau, C),
+                            bounds=bounds,
+                            method='SLSQP')
+        print(solution.x)
+        print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
 
         return
