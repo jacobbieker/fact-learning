@@ -333,7 +333,7 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 50000)
+    energies = 1000.0 * random_state.power(0.70, 500)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
 
@@ -362,7 +362,7 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
                                                  title="LLH Unfolding")
 
 if __name__ == "__main__":
-    test_llh_unfolding(1347, tau=1, plot=True, regularized=True, smearing=False, noise=False, unfolding=False)
+    test_llh_unfolding(1347, tau=1, plot=True, regularized=True, smearing=True, noise=True, unfolding=False)
     #test_llh_unfolding(np.random.RandomState(), tau=1, plot=False, regularized=True)
     #test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)

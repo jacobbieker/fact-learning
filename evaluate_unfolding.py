@@ -55,7 +55,7 @@ def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=No
     if errors is not None:
         plt.errorbar(bin_center, unfolded_vector, xerr=bin_width, yerr=errors, fmt='.', label="Unfolding Error")
 
-    plt.hist(bin_center, weights=true_hits[0], bins=binning, normed=False,
+    plt.hist(bin_center, weights=energies, bins=binning, normed=False,
              label="True Energy", histtype='step')
     plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
     plt.hist(bin_center, bins=binning, weights=signal, histtype='step', label='Signal')
@@ -64,7 +64,7 @@ def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=No
     #plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
     # plt.errorbar(unfolded_vector, y=y_values[0], yerr=sigma_x_unf)
     if not title:
-        plt.title("Number of Particles: " + str(energies.shape[0]))
+        plt.title("Number of Particles: " + str(np.sum(energies)))
     else:
         plt.title(str(title))
     plt.legend(loc='best')

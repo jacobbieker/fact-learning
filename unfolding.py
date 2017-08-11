@@ -314,7 +314,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             prior = 0
         # print(prior)
         print(len(before_regularize))
-        likelihood_log = np.sum((np.asarray(before_regularize)) - prior)  # + np.diag(prior)
+        likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
         print(likelihood_log)
         # print(max(likelihood_log))
         # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
@@ -482,15 +482,16 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         cons = ({'type': 'eq', 'fun': lambda x: np.absolute(np.sum(x) - np.sum(new_true))})
         solution = minimize(fun=log_likelihood,
                             x0=new_true,
-                            args=(signal, detector_response_matrix, tau, C),
+                            args=(signal, detector_response_matrix, tau, C, False),
                             bounds=bounds,
-                            #method='SLSQP',
-                            #constraints=cons,
+                            method='SLSQP',
+                            constraints=cons,
                             )
         print(solution.x)
         print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
         print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
         print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((solution.x / true_energy) - (signal / true_energy)))
+        print("Difference between Solution and Signal (Solution/Signal): \n" + str(solution.x / signal))
         print(solution.success)
         print(solution.message)
 
