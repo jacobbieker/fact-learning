@@ -482,10 +482,11 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         cons = ({'type': 'eq', 'fun': lambda x: np.absolute(np.sum(x) - np.sum(new_true))})
         solution = minimize(fun=log_likelihood,
                             x0=new_true,
-                            args=(signal, detector_response_matrix, tau, C, False),
+                            args=(signal, detector_response_matrix, tau, C, regularized),
                             bounds=bounds,
                             method='SLSQP',
                             constraints=cons,
+                            options={'maxiter': 1000}
                             )
         print(solution.x)
         print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))

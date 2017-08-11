@@ -22,7 +22,7 @@ def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
 def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
-    binning = np.linspace(min(energies), max(energies), num_bins+1)
+    binning = np.linspace(min(energies), max(energies), num_bins + 1)
     bin_width = (binning[1:] - binning[:-1]) / 2.
     bin_center = (binning[:-1] + binning[1:]) / 2.
     true_hits = np.histogram(energies, bins=binning)
@@ -45,10 +45,11 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, t
     plt.yscale('log')
     plt.show()
 
+
 def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=None, num_bins=20, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
-    binning = np.linspace(min(energies), max(energies), num_bins+1)
+    binning = np.linspace(min(energies), max(energies), num_bins + 1)
     bin_width = (binning[1:] - binning[:-1]) / 2.
     bin_center = (binning[:-1] + binning[1:]) / 2.
     true_hits = np.histogram(energies, bins=binning)
@@ -59,9 +60,9 @@ def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=No
              label="True Energy", histtype='step')
     plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
     plt.hist(bin_center, bins=binning, weights=signal, histtype='step', label='Signal')
-    #x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
-    #x_vector = powerlaw.pdf(x_pdf_space, 0.70)
-    #plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
+    # x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
+    # x_vector = powerlaw.pdf(x_pdf_space, 0.70)
+    # plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
     # plt.errorbar(unfolded_vector, y=y_values[0], yerr=sigma_x_unf)
     if not title:
         plt.title("Number of Particles: " + str(np.sum(energies)))
