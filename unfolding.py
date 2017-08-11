@@ -250,9 +250,6 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     # to get the most likely true distribution based off the measured values.
     # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
 
-    hessian_detector = nd.Hessian(detector_response_matrix)
-    gradient_detector = nd.Gradient(detector_response_matrix)
-
     def likelihood(f, actual_observed, detector_matrix, tau):
         print(f)
         print(actual_observed)
@@ -313,9 +310,9 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         else:
             prior = 0
         # print(prior)
-        print(len(before_regularize))
+        # print(len(before_regularize))
         likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
-        print(likelihood_log)
+        # print(likelihood_log)
         # print(max(likelihood_log))
         # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
         # Yes, it does because constant and just wastes time computing them for the minimization
@@ -489,10 +486,10 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                             options={'maxiter': 1000}
                             )
         print(solution.x)
-        print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
-        print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
-        print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((solution.x / true_energy) - (signal / true_energy)))
-        print("Difference between Solution and Signal (Solution/Signal): \n" + str(solution.x / signal))
+        # print("Difference between solution and true (Solution/True):\n " + str(solution.x / true_energy))
+        # print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
+        # print("Difference between the two above ones (New_True Array - Signal Array):\n " + str((solution.x / true_energy) - (signal / true_energy)))
+        # print("Difference between Solution and Signal (Solution/Signal): \n" + str(solution.x / signal))
         print(solution.success)
         print(solution.message)
 
