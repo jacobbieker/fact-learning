@@ -250,28 +250,6 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     # to get the most likely true distribution based off the measured values.
     # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
 
-    def likelihood(f, actual_observed, detector_matrix, tau):
-        print(f)
-        print(actual_observed)
-        part_one = []
-        for index, gi in enumerate(actual_observed):
-            part_one.append(((np.sum(detector_matrix[:, index]) * f) ** actual_observed))
-        part_one = np.asarray(part_one)
-        print(part_one.shape)
-        print(part_one)
-        part_two = []
-        for gi in actual_observed:
-            part_two.append(np.math.factorial(gi))
-        part_two = np.asarray(part_two)
-        print(part_two.shape)
-        print(part_two)
-        part_three = np.exp(-1. * f)
-        print(part_three.shape)
-        print(part_three)
-        result = np.prod(part_one / part_two * part_three)
-        print(result)
-        return result
-
     def calculate_C(data):
         diagonal = np.zeros_like(data)
         diagonal[0, 0] = -1
@@ -326,8 +304,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             possion_part = 0
             for i in range(detector_matrix.shape[0]):
                 part_one = detector_matrix[i, k]
-                part_two = (actual_observed[i] * detector_matrix[i, k])
-                part_three = np.sum((detector_matrix[i, :] * f))
+                part_two = (actual_observed[i] )#* detector_matrix[i, k])
+                part_three = np.sum((np.dot(detector_matrix[i, :], f)))
                 # print("Sum of Ai,j and f: " + str(part_three))
                 inside_gradient[k] = (part_one - part_two / part_three)
                 possion_part += part_one - part_two / part_three
@@ -350,7 +328,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             for l in range(H.shape[0]):
                 possion_part = 0
                 for i in range(H.shape[1]):
-                    top_part = actual_observed[i] * detector_matrix[i, k] * detector_matrix[i, l]
+                    top_part = actual_observed[i] # * detector_matrix[i, k] * detector_matrix[i, l]
                     bottom_part = np.sum(detector_matrix[i, :] * f)
 
                     possion_part += top_part / bottom_part**2
@@ -467,7 +445,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         print("(Real_True / Signal:\n" + str(true_energy / signal))
         print("(New True / Signal): \n" + str(new_true / signal))
         print(iterations)
-        return
+        return new_true, signal, true_energy
     else:
         # Forward folding occurs, using Wilks Theorem to fit curve to data
         wilks_bins = 4
@@ -479,7 +457,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         cons = ({'type': 'eq', 'fun': lambda x: np.absolute(np.sum(x) - np.sum(new_true))})
         solution = minimize(fun=log_likelihood,
                             x0=new_true,
-                            args=(signal, detector_response_matrix, tau, C, regularized),
+                            args=(true_energy, detector_response_matrix, tau, C, regularized),
                             bounds=bounds,
                             method='SLSQP',
                             constraints=cons,
