@@ -299,7 +299,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
         # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
         inside_gradient = np.zeros_like(detector_matrix)
-        h = np.zeros_like(f)
+        h = np.zeros(shape=f.shape, dtype=np.float64)
         for k in range(detector_matrix.shape[1]):
             possion_part = 0
             for i in range(detector_matrix.shape[0]):
@@ -307,7 +307,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                 part_two = (actual_observed[i] )#* detector_matrix[i, k])
                 part_three = np.sum((np.dot(detector_matrix[i, :], f)))
                 # print("Sum of Ai,j and f: " + str(part_three))
-                inside_gradient[k] = (part_one - part_two / part_three)
+                inside_gradient[i] = (part_one - part_two / part_three)
                 possion_part += part_one - part_two / part_three
             # I think this adds it too many times
             if regularized:
@@ -321,7 +321,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         return h
 
     def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
-        H = np.zeros_like(detector_matrix)
+        H = np.zeros(shape=detector_matrix.shape, dtype=np.float64)
         #print(H.shape)
         # Trying to get d^2S/df_kdf_l = Hk,l = This?
         for k in range(H.shape[0]):
@@ -402,8 +402,8 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         print(change_in_a)
         iterations = 0
         new_likelihood = likelihood_value
-        while 0.5 < change_in_a.any() or change_in_a.any() < -0.5:
-            old_likliehood = new_likelihood
+        while 0.005 < change_in_a.any() or change_in_a.any() < -0.005:
+            old_likelihood = new_likelihood
             print("Number of Iterations: " + str(iterations))
             part_one = log_likelihood(new_true, signal, detector_matrix=detector_response_matrix,
                                       tau=tau, C=C, regularized=regularized)
@@ -418,12 +418,19 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print("Part Three: " + str(part_three))
             # This is currently the log likeliehood after the change, so it should be a single number and very negative
             new_likelihood = (part_one + part_two + part_three)
-            print("New vs old: " + str(new_likelihood - old_likliehood))
+            print("New vs old: " + str(new_likelihood - old_likelihood))
             print(new_likelihood)
             # Minimization check here, if the new value is larger than the old one, going wrong way, so break the loop
             # Could try different step sizes I guess
-            if new_likelihood < old_likliehood:
+            if new_likelihood < old_likelihood:
                 new_true = new_true + change_in_a
+                for i in range(len(new_true)):
+                    if new_true[i] < 0.:
+                        # Regularize back to the total number of particles, to keep it real
+                        size_of_change = min(new_true)
+                        new_true += -1.*size_of_change+1
+                        new_true = new_true/np.sum(new_true)+1
+                        new_true *= np.sum(signal)
             else:
                 print("BREAKING AFTER " + str(iterations) + " ITERATIONS")
                 break
