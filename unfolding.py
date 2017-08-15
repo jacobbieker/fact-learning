@@ -2,10 +2,7 @@ import numpy as np
 from scipy.stats import powerlaw
 import numdifftools as nd
 from scipy.optimize import minimize
-import math
 import matplotlib.pyplot as plt
-import numpy
-from pprint import pprint
 
 
 def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=None):
@@ -284,7 +281,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             before_regularize.append(part_one - part_two + part_three)
         # Prior is the 1/2 * tau * f(x).T * C' * f(x)
         if regularized:
-            prior = (0.5 * tau * np.dot(np.dot(f.T, np.dot(C.T, C)), f))
+            prior = (0.5 * tau * np.dot(np.dot(np.log(f.T+1), np.dot(C.T, C)), np.log(f+1)))
         else:
             prior = 0
         # print(prior)
@@ -311,7 +308,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                 possion_part += part_one - part_two / part_three
             # I think this adds it too many times
             if regularized:
-                prior = tau * np.sum(C_prime[:, k] * f)
+                prior = tau * np.sum(np.dot(C_prime[:, k], np.log(f+1)))
             else:
                 prior = 0
             # print("Compare prior - np sum vs way in other one---------------------------------------------------------")
@@ -347,7 +344,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         # print("Delta Gradient shape: "+ str(gradient.shape))
         # print("Hess matirx shape: "+ str(hessian.shape))
         # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
-        return 0.01 * -1. * np.dot((np.linalg.inv(hessian)), gradient)
+        return 0.0005 * -1. * np.dot((np.linalg.inv(hessian)), gradient)
         # Now to actually try to do the likelihood part
 
     # First need to bin the true energy, same as the detector matrix currently
@@ -416,7 +413,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
             print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
             print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
-            part_three = 0  # 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
+            part_three =  0 #0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
             # This is currently the log likeliehood after the change, so it should be a single number and very negative
             new_likelihood = (part_one + part_two + part_three)
@@ -426,13 +423,10 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             # Could try different step sizes I guess
             if new_likelihood < old_likelihood:
                 new_true = new_true + change_in_a
-                for i in range(len(new_true)):
-                    if new_true[i] < 0.:
-                        # Regularize back to the total number of particles, to keep it real
-                        size_of_change = min(new_true)
-                        new_true += -1. * size_of_change + 1
-                        new_true = new_true / np.sum(new_true)
-                        new_true *= np.sum(signal)
+                size_of_change = min(new_true)
+                new_true += -1. * size_of_change + 0.01
+                new_true = new_true / np.sum(new_true)
+                new_true *= np.sum(signal)
             else:
                 print("BREAKING AFTER " + str(iterations) + " ITERATIONS")
                 break

@@ -372,9 +372,9 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
 
 
 if __name__ == "__main__":
-    test_llh_unfolding(1347, tau=0.005, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
-                       resolution_val=1., unfolding=True)
-    test_llh_unfolding(np.random.RandomState(), tau=0.005, plot=True, regularized=False, smearing=False, noise=False, noise_val=0.,
+    test_llh_unfolding(1347, tau=0.001, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
+                       resolution_val=1., unfolding=False)
+    test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
                        resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)
