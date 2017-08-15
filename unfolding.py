@@ -18,12 +18,17 @@ def bin_data(signal, true_energy, detector_response_matrix):
     return signal, true_energy
 
 
-def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True):
+def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True, negative_log=True):
     # print("Shape f:" + str(f.shape))
     # print("Shape detector_side: " + str(detector_matrix.shape))
     # print("Observed shape:" + str(actual_observed.shape))
     before_regularize = []
     for i in range(len(actual_observed)):
+        if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
+            if negative_log:
+                return np.inf
+            else:
+                return -np.inf
         # Not sure if this is correct change from the product one to this, if the summing over the ith column in
         # A is what is supposed to be the case, or the ith row, or something else Mathy, it should be Sum(ln(gi!)
         #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
@@ -48,8 +53,10 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
     # print(max(likelihood_log))
     # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
     # Yes, it does because constant and just wastes time computing them for the minimization
-    return likelihood_log
-
+    if negative_log:
+        return likelihood_log
+    else:
+        return likelihood_log * -1
 
 def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
     # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
@@ -498,16 +505,13 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
                                     dim=detector_response_matrix.shape[0],
                                     lnpostfn=log_likelihood,
                                     threads=num_threads,
-                                    args=(signal, detector_response_matrix, tau, C, regularized))
+                                    args=(signal, detector_response_matrix, tau, C, regularized, False))
 
     total_steps = num_burn_steps + num_used_steps
     uniform_start = np.ones(shape=detector_response_matrix.shape[0])
     starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[0]), dtype=np.float64)
     for index, value in enumerate(uniform_start):
-        print(index)
-        print(uniform_start.shape)
-        print(starting_positions.shape)
-        starting_positions[:, index] = random_state.poisson(value, size=num_walkers)
+        starting_positions[:, index] = np.abs(random_state.poisson(np.sum(signal)/len(signal), size=num_walkers))
 
     new_true, samples, probabilities = sampler.run_mcmc(pos0=starting_positions,
                                                         N=total_steps,
