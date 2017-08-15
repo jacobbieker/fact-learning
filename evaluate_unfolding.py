@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import powerlaw
+import corner
 
 
 def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):

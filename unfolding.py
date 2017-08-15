@@ -1,8 +1,126 @@
 import numpy as np
 from scipy.stats import powerlaw
-import numdifftools as nd
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+import emcee
+
+
+def bin_data(signal, true_energy, detector_response_matrix):
+    if signal.ndim == 2:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    if true_energy.ndim == 2:
+        sum_signal_per_chamber = np.sum(true_energy, axis=1)
+        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    else:
+        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
+
+    return signal, true_energy
+
+
+def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True):
+    # print("Shape f:" + str(f.shape))
+    # print("Shape detector_side: " + str(detector_matrix.shape))
+    # print("Observed shape:" + str(actual_observed.shape))
+    before_regularize = []
+    for i in range(len(actual_observed)):
+        # Not sure if this is correct change from the product one to this, if the summing over the ith column in
+        # A is what is supposed to be the case, or the ith row, or something else Mathy, it should be Sum(ln(gi!)
+        #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
+        part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
+        # Part Two = gi*ln((Af(x)_i)
+        part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
+        # print("Shape part two: " + str(part_two.shape))
+        # Part Three = (Af(x)_i)
+        part_three = (np.dot(detector_matrix, f)[i])
+        # print("Shape part three: " + str(part_three.shape))
+        # print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
+        before_regularize.append(part_one - part_two + part_three)
+    # Prior is the 1/2 * tau * f(x).T * C' * f(x)
+    if regularized:
+        prior = (0.5 * tau * np.dot(np.dot(np.log(f.T + 1), np.dot(C.T, C)), np.log(f + 1)))
+    else:
+        prior = 0
+    # print(prior)
+    # print(len(before_regularize))
+    likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
+    # print(likelihood_log)
+    # print(max(likelihood_log))
+    # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
+    # Yes, it does because constant and just wastes time computing them for the minimization
+    return likelihood_log
+
+
+def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
+    # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
+    inside_gradient = np.zeros_like(detector_matrix)
+    h = np.zeros(shape=f.shape, dtype=np.float64)
+    for k in range(detector_matrix.shape[1]):
+        possion_part = 0
+        for i in range(detector_matrix.shape[0]):
+            part_one = detector_matrix[i, k]
+            part_two = (actual_observed[i])  # * detector_matrix[i, k])
+            part_three = np.sum((np.dot(detector_matrix[i, :], f)))
+            # print("Sum of Ai,j and f: " + str(part_three))
+            inside_gradient[i] = (part_one - part_two / part_three)
+            possion_part += part_one - part_two / part_three
+        # I think this adds it too many times
+        if regularized:
+            prior = tau * np.sum(np.dot(C_prime[:, k], np.log(f + 1)))
+        else:
+            prior = 0
+        # print("Compare prior - np sum vs way in other one---------------------------------------------------------")
+        # print(prior - np.sum(inside_gradient[k]))
+        # print(prior - possion_part)
+        h[k] = prior - possion_part  # np.sum(inside_gradient[k])
+    return h
+
+
+def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
+    H = np.zeros(shape=detector_matrix.shape, dtype=np.float64)
+    # print(H.shape)
+    # Trying to get d^2S/df_kdf_l = Hk,l = This?
+    for k in range(H.shape[0]):
+        for l in range(H.shape[0]):
+            possion_part = 0
+            for i in range(H.shape[1]):
+                top_part = actual_observed[i] * detector_matrix[i, k] * detector_matrix[i, l]
+                bottom_part = np.sum(detector_matrix[i, :] * f)
+
+                possion_part += top_part / bottom_part ** 2
+            if regularized:
+                prior = tau * C_prime[k, l]
+            else:
+                prior = 0
+            H[k, l] = possion_part + prior
+
+    # Now the variance/error is the inverse of the Hessian, so might as well compute it here
+    # print(H)
+    error = np.linalg.inv(H)
+    return H, error
+
+
+def calculate_C(data):
+    diagonal = np.zeros_like(data)
+    diagonal[0, 0] = -1
+    diagonal[0, 1] = 1
+    diagonal[-1, -2] = 1
+    # diagonal[-1,0] = -1
+    diagonal[-1, -1] = -1
+    # diagonal[0,-1] = -1
+    for i in range(diagonal.shape[0])[1:-1]:
+        diagonal[i, i] = -2
+        diagonal[i, i + 1] = 1
+        diagonal[i, i - 1] = 1
+    return diagonal
+
+
+def delta_a(hessian, gradient):
+    # print("Delta Gradient shape: "+ str(gradient.shape))
+    # print("Hess matirx shape: "+ str(hessian.shape))
+    # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
+    return 0.0005 * -1. * np.dot((np.linalg.inv(hessian)), gradient)
+    # Now to actually try to do the likelihood part
 
 
 def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff=None):
@@ -168,9 +286,7 @@ def matrix_inverse_unfolding(signal, detector_response_matrix):
 def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     u, s, v = np.linalg.svd(detector_response_matrix, full_matrices=True)
 
-    if signal.ndim == 2:
-        sum_signal_per_chamber = np.sum(signal, axis=1)
-        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    signal, _ = bin_data(signal, signal, detector_response_matrix)
 
     singular_values = np.diag(s)
     new_s = np.zeros_like(singular_values)
@@ -247,116 +363,9 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     # to get the most likely true distribution based off the measured values.
     # Not sure what log-likliehood does with it, maybe easier to deal the the probabilities?
 
-    def calculate_C(data):
-        diagonal = np.zeros_like(data)
-        diagonal[0, 0] = -1
-        diagonal[0, 1] = 1
-        diagonal[-1, -2] = 1
-        # diagonal[-1,0] = -1
-        diagonal[-1, -1] = -1
-        # diagonal[0,-1] = -1
-        for i in range(diagonal.shape[0])[1:-1]:
-            diagonal[i, i] = -2
-            diagonal[i, i + 1] = 1
-            diagonal[i, i - 1] = 1
-        return diagonal
-
-    def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True):
-        # print("Shape f:" + str(f.shape))
-        # print("Shape detector_side: " + str(detector_matrix.shape))
-        # print("Observed shape:" + str(actual_observed.shape))
-        before_regularize = []
-        for i in range(len(actual_observed)):
-            # Not sure if this is correct change from the product one to this, if the summing over the ith column in
-            # A is what is supposed to be the case, or the ith row, or something else Mathy, it should be Sum(ln(gi!)
-            #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
-            part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
-            # Part Two = gi*ln((Af(x)_i)
-            part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
-            # print("Shape part two: " + str(part_two.shape))
-            # Part Three = (Af(x)_i)
-            part_three = (np.dot(detector_matrix, f)[i])
-            # print("Shape part three: " + str(part_three.shape))
-            # print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
-            before_regularize.append(part_one - part_two + part_three)
-        # Prior is the 1/2 * tau * f(x).T * C' * f(x)
-        if regularized:
-            prior = (0.5 * tau * np.dot(np.dot(np.log(f.T+1), np.dot(C.T, C)), np.log(f+1)))
-        else:
-            prior = 0
-        # print(prior)
-        # print(len(before_regularize))
-        likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
-        # print(likelihood_log)
-        # print(max(likelihood_log))
-        # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
-        # Yes, it does because constant and just wastes time computing them for the minimization
-        return likelihood_log
-
-    def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
-        # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
-        inside_gradient = np.zeros_like(detector_matrix)
-        h = np.zeros(shape=f.shape, dtype=np.float64)
-        for k in range(detector_matrix.shape[1]):
-            possion_part = 0
-            for i in range(detector_matrix.shape[0]):
-                part_one = detector_matrix[i, k]
-                part_two = (actual_observed[i])  # * detector_matrix[i, k])
-                part_three = np.sum((np.dot(detector_matrix[i, :], f)))
-                # print("Sum of Ai,j and f: " + str(part_three))
-                inside_gradient[i] = (part_one - part_two / part_three)
-                possion_part += part_one - part_two / part_three
-            # I think this adds it too many times
-            if regularized:
-                prior = tau * np.sum(np.dot(C_prime[:, k], np.log(f+1)))
-            else:
-                prior = 0
-            # print("Compare prior - np sum vs way in other one---------------------------------------------------------")
-            # print(prior - np.sum(inside_gradient[k]))
-            # print(prior - possion_part)
-            h[k] = prior - possion_part  # np.sum(inside_gradient[k])
-        return h
-
-    def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
-        H = np.zeros(shape=detector_matrix.shape, dtype=np.float64)
-        # print(H.shape)
-        # Trying to get d^2S/df_kdf_l = Hk,l = This?
-        for k in range(H.shape[0]):
-            for l in range(H.shape[0]):
-                possion_part = 0
-                for i in range(H.shape[1]):
-                    top_part = actual_observed[i] * detector_matrix[i, k] * detector_matrix[i, l]
-                    bottom_part = np.sum(detector_matrix[i, :] * f)
-
-                    possion_part += top_part / bottom_part ** 2
-                if regularized:
-                    prior = tau * C_prime[k, l]
-                else:
-                    prior = 0
-                H[k, l] = possion_part + prior
-
-        # Now the variance/error is the inverse of the Hessian, so might as well compute it here
-        # print(H)
-        error = np.linalg.inv(H)
-        return H, error
-
-    def delta_a(hessian, gradient):
-        # print("Delta Gradient shape: "+ str(gradient.shape))
-        # print("Hess matirx shape: "+ str(hessian.shape))
-        # From the paper, Delta_a = -H^-1*h, with h = gradient for the unregularized setup
-        return 0.0005 * -1. * np.dot((np.linalg.inv(hessian)), gradient)
-        # Now to actually try to do the likelihood part
-
     # First need to bin the true energy, same as the detector matrix currently
 
-    if signal.ndim == 2:
-        sum_signal_per_chamber = np.sum(signal, axis=1)
-        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
-    if true_energy.ndim == 2:
-        sum_signal_per_chamber = np.sum(true_energy, axis=1)
-        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
-    else:
-        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
+    signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
 
     C = calculate_C(np.diag(signal))
 
@@ -413,7 +422,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             print("First Dot: " + str(np.dot(change_in_a.T, hessian_update)))
             print("Second Dot: " + str(np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)))
             print("Reversed Second Dot: " + str(np.dot(np.dot(hessian_update, change_in_a.T), change_in_a)))
-            part_three =  0 #0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
+            part_three = 0  # 0.5 * np.dot(np.dot(change_in_a.T, hessian_update), change_in_a)
             print("Part Three: " + str(part_three))
             # This is currently the log likeliehood after the change, so it should be a single number and very negative
             new_likelihood = (part_one + part_two + part_three)
@@ -437,7 +446,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
                                              detector_matrix=detector_response_matrix, tau=tau, C_prime=C_prime,
                                              regularized=regularized)
             hessian_update, hessian_error = hessian_matrix(new_true, signal, detector_matrix=detector_response_matrix,
-                                                          tau=tau, C_prime=C_prime, regularized=regularized)
+                                                           tau=tau, C_prime=C_prime, regularized=regularized)
             change_in_a = delta_a(hessian_update, gradient_update)
             iterations += 1
 
@@ -476,3 +485,39 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         print(solution.message)
 
         return solution.x, signal, true_energy
+
+
+def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=100, num_used_steps=2000,
+                   num_burn_steps=1000, random_state=None, num_threads=1, tau=0., regularized=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
+    C = calculate_C(detector_response_matrix)
+    sampler = emcee.EnsembleSampler(nwalkers=num_walkers,
+                                    dim=detector_response_matrix.shape[0],
+                                    lnpostfn=log_likelihood,
+                                    threads=num_threads,
+                                    args=(signal, detector_response_matrix, tau, C, regularized))
+
+    total_steps = num_burn_steps + num_used_steps
+    uniform_start = np.ones(shape=detector_response_matrix.shape[0])
+    starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[0]), dtype=np.float64)
+    for index, value in enumerate(uniform_start):
+        print(index)
+        print(uniform_start.shape)
+        print(starting_positions.shape)
+        starting_positions[:, index] = random_state.poisson(value, size=num_walkers)
+
+    new_true, samples, probabilities = sampler.run_mcmc(pos0=starting_positions,
+                                                        N=total_steps,
+                                                        rstate0=random_state)
+
+    samples = sampler.chain[:, num_burn_steps:, :]
+    samples = samples.reshape((-1, detector_response_matrix.shape[0]))
+
+    probabilities = sampler.lnprobability[:, num_burn_steps:]
+    probabilities = probabilities.reshape((-1))
+
+    max_likelihood = np.argmax(probabilities)
+    print(max_likelihood)

@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from detector import Detector
-from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfolding, llh_unfolding, eigenvalue_cutoff
+from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfolding, llh_unfolding, eigenvalue_cutoff, mcmc_unfolding
 import evaluate_unfolding
 import evaluate_detector
 
@@ -371,11 +371,46 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
         #                                        title="LLH Unfolding")
 
 
+def test_mcmc_unfolding(random_state=None, tau=1., noise=True, smearing=True, regularized=True, noise_val=0.,
+                        resolution_val=1., plot=False):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+    energies = 1000.0 * random_state.power(0.70, 5000)
+    below_zero = energies < 1.0
+    energies[below_zero] = 1.0
+
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=noise,
+                        smearing=smearing,
+                        resolution_chamber=resolution_val,
+                        noise=noise_val,
+                        response_bins=20,
+                        rectangular_bins=20,
+                        random_state=random_state)
+
+    signal, true_hits, energies_return, detector_matrix = detector.simulate(
+        energies)
+
+    mcmc_unfolding_results = mcmc_unfolding(signal, true_hits, detector_matrix,
+                                            random_state=random_state,
+                                            tau=tau,
+                                            regularized=regularized)
+
+    if true_hits.ndim == 2:
+        sum_true_energy = np.sum(true_hits, axis=1)
+        true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
+
+    if plot:
+        evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0], mcmc_unfolding_results[1],
+                                                           mcmc_unfolding_results[2])
+
 if __name__ == "__main__":
-    test_llh_unfolding(1347, tau=0.001, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
-                       resolution_val=1., unfolding=False)
-    test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
-                       resolution_val=1., unfolding=True)
+    test_mcmc_unfolding(1347, tau=0.5, regularized=False, plot=True)
+    #test_llh_unfolding(1347, tau=0.5, plot=True, regularized=True, smearing=True, noise=True, noise_val=0000000.,
+    #                   resolution_val=1., unfolding=False)
+    #test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
+    #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)
     # test_epsilon_svd_unfolding(1347, plot=True)
