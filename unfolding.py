@@ -3,6 +3,7 @@ from scipy.stats import powerlaw
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import emcee
+import corner
 
 
 def bin_data(signal, true_energy, detector_response_matrix):
@@ -23,6 +24,11 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
     # print("Shape detector_side: " + str(detector_matrix.shape))
     # print("Observed shape:" + str(actual_observed.shape))
     before_regularize = []
+    if np.asarray(actual_observed).any() <= 0:
+        if negative_log:
+            return np.inf
+        else:
+            return -np.inf
     for i in range(len(actual_observed)):
         if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
             if negative_log:
@@ -34,7 +40,13 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
         #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
         part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
         # Part Two = gi*ln((Af(x)_i)
-        part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
+        try:
+            part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
+        except ValueError:
+            print('?')
+            print(np.dot(detector_matrix, f))
+            print(f)
+            exit()
         # print("Shape part two: " + str(part_two.shape))
         # Part Three = (Af(x)_i)
         part_three = (np.dot(detector_matrix, f)[i])
@@ -54,8 +66,10 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
     # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
     # Yes, it does because constant and just wastes time computing them for the minimization
     if negative_log:
+        #print("Negative Log: \n" + str(likelihood_log))
         return likelihood_log
     else:
+        #print("Positive Log: \n" + str(-1*likelihood_log))
         return likelihood_log * -1
 
 def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
@@ -509,7 +523,7 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
 
     total_steps = num_burn_steps + num_used_steps
     uniform_start = np.ones(shape=detector_response_matrix.shape[0])
-    starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[0]), dtype=np.float64)
+    starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[0]), dtype=np.float32)
     for index, value in enumerate(uniform_start):
         starting_positions[:, index] = np.abs(random_state.poisson(np.sum(signal)/len(signal), size=num_walkers))
 
@@ -524,4 +538,10 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
     probabilities = probabilities.reshape((-1))
 
     max_likelihood = np.argmax(probabilities)
+    print(samples.shape)
+    print(probabilities.shape)
     print(max_likelihood)
+    print(probabilities[max_likelihood])
+    corner.corner(samples, truths=signal)
+    plt.show()
+    return samples, probabilities, new_true, max_likelihood

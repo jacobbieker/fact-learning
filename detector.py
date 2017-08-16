@@ -100,7 +100,7 @@ class Detector:
 
         # Need to make sure the mean values are positive from distribution, or just use the means directly
 
-        true_hits = np.zeros(shape=(energies.shape[0], self.n_chambers))
+        true_hits = np.zeros(shape=(energies.shape[0], self.n_chambers), dtype=np.float64)
 
         # For use in the gamma distribution that is strictly positive
         variance = 1.0
@@ -194,7 +194,7 @@ class Detector:
             Signal return by each chamber in photons
         '''
 
-        signal = np.zeros_like(chamber_hits, dtype=np.float32)
+        signal = np.zeros_like(chamber_hits, dtype=np.float64)
 
         for particle_number, chambers in enumerate(chamber_hits):
             for chamber_number, energy_value in enumerate(chambers):
@@ -204,7 +204,7 @@ class Detector:
                 total_photons = np.floor(energy_value / energy_per_photon)
 
                 if self.distribution == 'binomial':
-                    photons_detected = np.random.binomial(n=total_photons, p=self.resolution_chamber)
+                    photons_detected = self.random_state.binomial(n=total_photons, p=self.resolution_chamber)
                 elif self.distribution == 'gaussian':
                     photons_detected = self.random_state.normal(
                         loc=energy_value, scale=self.resolution_chamber)

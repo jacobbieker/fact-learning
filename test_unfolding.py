@@ -1,9 +1,12 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from detector import Detector
-from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfolding, llh_unfolding, eigenvalue_cutoff, mcmc_unfolding
+from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfolding, llh_unfolding, eigenvalue_cutoff, \
+    mcmc_unfolding
 import evaluate_unfolding
 import evaluate_detector
+
+import funfolding as ff
 
 
 def test_identity_response_matrix_unfolding(random_state=None, num_bins=20, plot=False):
@@ -102,25 +105,12 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
         print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
 
 
-def test_detector_response_matrix_unfolding(random_state=None, noise=True, smearing=True, plot=False):
+def test_detector_response_matrix_unfolding(random_state=None, detector_data=None, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 50000)
-    # energies = normal(loc=1000.0, scale=500, size=1000)
-    below_zero = energies < 1.0
-    energies[below_zero] = 1.0
-
-    detector = Detector(distribution='gaussian',
-                        energy_loss='const',
-                        make_noise=noise,
-                        smearing=smearing,
-                        resolution_chamber=1.,
-                        noise=0.,
-                        random_state=random_state)
-
-    signal, true_hits, energies_return, detector_matrix = detector.simulate(
-        energies)
+    if detector_data:
+        signal, true_hits, energies_return, detector_matrix = detector_data
 
     matrix_inverse_unfolding_results = matrix_inverse_unfolding(signal, detector_matrix)
 
@@ -231,26 +221,12 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, cutoff=5
                                                  title="Unfolding True 2")
 
 
-def test_svd_unfolding(random_state=None, smearing=True, noise=True, num_bins=20, plot=False, cutoff=None):
+def test_svd_unfolding(random_state=None, detector_data=None, num_bins=20, plot=False, cutoff=None):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 5000)
-    below_zero = energies < 1.0
-    energies[below_zero] = 1.0
-
-    detector = Detector(distribution='gaussian',
-                        energy_loss='const',
-                        make_noise=noise,
-                        smearing=smearing,
-                        resolution_chamber=1.,
-                        noise=0.,
-                        response_bins=num_bins,
-                        rectangular_bins=20,
-                        random_state=random_state)
-
-    signal, true_hits, energies_return, detector_matrix = detector.simulate(
-        energies)
+    if detector_data:
+        signal, true_hits, energies_return, detector_matrix = detector_data
 
     svd_unfolding_results = svd_unfolding(signal, detector_matrix, cutoff=cutoff)
 
@@ -334,27 +310,13 @@ def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_c
         print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
 
 
-def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, noise=True, smearing=True,
-                       regularized=True, noise_val=0., resolution_val=1., plot=False):
+def test_llh_unfolding(random_state=None, detector_data=None,  tau=1, unfolding=True, num_bins=20,
+                       regularized=True, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    energies = 1000.0 * random_state.power(0.70, 5000)
-    below_zero = energies < 1.0
-    energies[below_zero] = 1.0
-
-    detector = Detector(distribution='gaussian',
-                        energy_loss='const',
-                        make_noise=noise,
-                        smearing=smearing,
-                        resolution_chamber=resolution_val,
-                        noise=noise_val,
-                        response_bins=num_bins,
-                        rectangular_bins=num_bins,
-                        random_state=random_state)
-
-    signal, true_hits, energies_return, detector_matrix = detector.simulate(
-        energies)
+    if detector_data:
+        signal, true_hits, energies_return, detector_matrix = detector_data
 
     llh_unfolding_results = llh_unfolding(signal, energies_return, detector_matrix, tau=tau, unfolding=unfolding,
                                           regularized=regularized, num_bins=num_bins)
@@ -371,26 +333,12 @@ def test_llh_unfolding(random_state=None, tau=1, unfolding=True, num_bins=20, no
         #                                        title="LLH Unfolding")
 
 
-def test_mcmc_unfolding(random_state=None, tau=1., noise=True, smearing=True, regularized=True, noise_val=0.,
-                        resolution_val=1., plot=False):
+def test_mcmc_unfolding(random_state=None, detector_data=None, tau=1., regularized=True, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
-    energies = 1000.0 * random_state.power(0.70, 5000)
-    below_zero = energies < 1.0
-    energies[below_zero] = 1.0
 
-    detector = Detector(distribution='gaussian',
-                        energy_loss='const',
-                        make_noise=noise,
-                        smearing=smearing,
-                        resolution_chamber=resolution_val,
-                        noise=noise_val,
-                        response_bins=20,
-                        rectangular_bins=20,
-                        random_state=random_state)
-
-    signal, true_hits, energies_return, detector_matrix = detector.simulate(
-        energies)
+    if detector_data is not None:
+        signal, true_hits, energies_return, detector_matrix = detector_data
 
     mcmc_unfolding_results = mcmc_unfolding(signal, true_hits, detector_matrix,
                                             random_state=random_state,
@@ -402,14 +350,74 @@ def test_mcmc_unfolding(random_state=None, tau=1., noise=True, smearing=True, re
         true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
 
     if plot:
-        evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0], mcmc_unfolding_results[1],
+        evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0],
+                                                           mcmc_unfolding_results[0][mcmc_unfolding_results[3]],
                                                            mcmc_unfolding_results[2])
 
+
+def generate_data(random_state=None, noise=True, smearing=True, resolution_val=1., noise_val=0., response_bins=20, rectangular_bins=20):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    energies = 1000.0 * random_state.power(0.70, 5000)
+    below_zero = energies < 1.0
+    energies[below_zero] = 1.0
+
+    detector = Detector(distribution='gaussian',
+                        energy_loss='const',
+                        make_noise=noise,
+                        smearing=smearing,
+                        resolution_chamber=resolution_val,
+                        noise=noise_val,
+                        response_bins=response_bins,
+                        rectangular_bins=rectangular_bins,
+                        random_state=random_state)
+
+    return detector.simulate(energies)
+
+
+def bin_data(signal, true_energy, detector_response_matrix):
+    if signal.ndim == 2:
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    if true_energy.ndim == 2:
+        sum_signal_per_chamber = np.sum(true_energy, axis=1)
+        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+    else:
+        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
+
+    return signal, true_energy
+
 if __name__ == "__main__":
-    test_mcmc_unfolding(1347, tau=0.5, regularized=False, plot=True)
-    #test_llh_unfolding(1347, tau=0.5, plot=True, regularized=True, smearing=True, noise=True, noise_val=0000000.,
+    model = ff.model.BasicLinearModel()
+    dataset = generate_data(1347, response_bins=5, rectangular_bins=5)
+    #np.save("detector_data_10", arr=dataset)
+    reloaded_data = np.load("detector_data.npy")
+
+    if False:
+        binned_g, binned_f = bin_data(reloaded_data[0], reloaded_data[1], reloaded_data[3])
+        print(binned_g)
+        print(binned_f)
+        model.initialize(g=binned_g,
+                         f=binned_f)
+
+        vec_g, vec_f = binned_g, binned_f
+        print(vec_g)
+        print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) :')
+        llh_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
+                                               random_state=1347)
+        llh_mcmc.initialize(vec_g=vec_g, model=model)
+        vec_f_est_mcmc, sample, probs = llh_mcmc.run(tau=0)
+        str_0 = 'unregularized:'
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
+
+    test_mcmc_unfolding(1347, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
     #                   resolution_val=1., unfolding=False)
-    #test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
+    # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )
     # test_svd_unfolding(1347, plot=False)
