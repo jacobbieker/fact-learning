@@ -390,18 +390,28 @@ def bin_data(signal, true_energy, detector_response_matrix):
 
 if __name__ == "__main__":
     model = ff.model.BasicLinearModel()
-    dataset = generate_data(1347, response_bins=5, rectangular_bins=5)
+    dataset = generate_data(1347, response_bins=20, rectangular_bins=20)
+    #reloaded_data = dataset
     #np.save("detector_data_10", arr=dataset)
     reloaded_data = np.load("detector_data.npy")
 
-    if False:
-        binned_g, binned_f = bin_data(reloaded_data[0], reloaded_data[1], reloaded_data[3])
+    if True:
+        binning_f = np.linspace(0, 5000, 11)
+        print(reloaded_data[0].shape)
+        sum_signal_per_chamber = np.sum(reloaded_data[0], axis=1)
+        sum_true_per_chamber = np.sum(reloaded_data[1], axis=1)
+        print(sum_signal_per_chamber.shape)
+        binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, 31)
+
+        binned_g = np.digitize(sum_signal_per_chamber, binning_g)
+        binned_f = np.digitize(sum_true_per_chamber, binning_f)
+
         print(binned_g)
         print(binned_f)
         model.initialize(g=binned_g,
                          f=binned_f)
 
-        vec_g, vec_f = binned_g, binned_f
+        vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
         print(vec_g)
         print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) :')
         llh_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
@@ -414,7 +424,7 @@ if __name__ == "__main__":
             str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
         print('{}\t{}'.format(str_0, str_1))
 
-    test_mcmc_unfolding(1347, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    test_mcmc_unfolding(1347, tau=0.5, detector_data=reloaded_data, regularized=False, plot=False)
     # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
     #                   resolution_val=1., unfolding=False)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
