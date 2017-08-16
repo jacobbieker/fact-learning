@@ -396,11 +396,11 @@ if __name__ == "__main__":
     reloaded_data = np.load("detector_data.npy")
 
     if True:
-        binning_f = np.linspace(0, 5000, 11)
         print(reloaded_data[0].shape)
         sum_signal_per_chamber = np.sum(reloaded_data[0], axis=1)
         sum_true_per_chamber = np.sum(reloaded_data[1], axis=1)
         print(sum_signal_per_chamber.shape)
+        binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, 11)
         binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, 31)
 
         binned_g = np.digitize(sum_signal_per_chamber, binning_g)
@@ -413,6 +413,7 @@ if __name__ == "__main__":
 
         vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
         print(vec_g)
+        print(vec_f)
         print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) :')
         llh_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
                                                random_state=1347)
