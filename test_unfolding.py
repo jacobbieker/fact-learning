@@ -432,7 +432,7 @@ if __name__ == "__main__":
     #reloaded_data = np.load("detector_data.npy")
     reloaded_data = dataset
 
-    if True:
+    if False:
         print(reloaded_data[0].shape)
         sum_signal_per_chamber = np.sum(reloaded_data[0], axis=1)
         sum_true_per_chamber = np.sum(reloaded_data[1], axis=1)

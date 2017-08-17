@@ -123,7 +123,7 @@ def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularize
 
 
 def calculate_C(data):
-    diagonal = np.zeros_like(data)
+    diagonal = np.zeros((max(data.shape), max(data.shape)))
     diagonal[0, 0] = -1
     diagonal[0, 1] = 1
     diagonal[-1, -2] = 1

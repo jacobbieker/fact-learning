@@ -244,7 +244,7 @@ class Detector:
         noise_hits = self.generate_noise(true_hits.shape[0])
         chamber_hits = true_hits + noise_hits
         signal = self.generate_chamber_signal(chamber_hits)
-        detector_matrix = self.get_response_matrix(energies, signal)
+        detector_matrix = self.get_response_matrix2(energies, signal)
         return signal, true_hits, energies, detector_matrix
 
     def get_response_matrix(self, original_energy_distribution, signal):
@@ -290,11 +290,38 @@ class Detector:
         return binnings[0], binnings[1]
 
     def get_response_matrix2(self, original_energy_distribution, signal):
-        binning_g, binning_f = self.get_binning(original_energy_distribution, signal)
-        response_matrix = np.histogram2d(signal, original_energy_distribution, bins=(binning_g, binning_f))[0]
-        normalizer = np.diag(1 / np.sum(response_matrix, axis=0))
+        sum_signal_per_chamber = np.sum(signal, axis=1)
+        sum_true_per_chamber = original_energy_distribution
+
+        binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, self.rectangular_bins)
+        binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, self.response_bins)
+
+        binned_g = np.digitize(sum_signal_per_chamber, binning_g)
+        binned_f = np.digitize(sum_true_per_chamber, binning_f)
+
+        binning_g, binning_f = self.get_binning(binned_f, binned_g)
+
+        signal = np.sum(signal, axis=1)
+        response_matrix = np.histogram2d(binned_g, binned_f, bins=(binning_g, binning_f))[0]
+        normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
         response_matrix = np.dot(response_matrix, normalizer)
 
         # response_matrix.shape[1] is the one for f, the true distribution binning
         # response_matrix.shape[0] is for the binning of g
+        print(response_matrix)
+        print(response_matrix.shape)
+
         return response_matrix
+
+    def get_vectors(self, original_energy_distribution=None, signal=None):
+        if signal is not None:
+            binning_g, binning_f = self.get_binning(original_energy_distribution, signal)
+            vec_g = np.histogram(signal, bins=binning_g)[0]
+        else:
+            vec_g = None
+        if original_energy_distribution is not None:
+            binning_g, binning_f = self.get_binning(original_energy_distribution, signal)
+            vec_f = np.histogram(original_energy_distribution, bins=binning_f)[0]
+        else:
+            vec_f = None
+        return vec_g, vec_f
