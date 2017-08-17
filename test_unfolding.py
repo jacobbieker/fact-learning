@@ -427,7 +427,7 @@ def bin_data(signal, true_energy, detector_response_matrix):
 
 if __name__ == "__main__":
     model = ff.model.BasicLinearModel()
-    dataset = generate_data(1347, response_bins=30, rectangular_bins=20)
+    dataset = generate_data(1347, response_bins=31, rectangular_bins=21)
     # np.save("detector_data_10", arr=dataset)
     #reloaded_data = np.load("detector_data.npy")
     reloaded_data = dataset

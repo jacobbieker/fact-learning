@@ -12,9 +12,9 @@ def bin_data(signal, true_energy, detector_response_matrix):
         signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
     if true_energy.ndim == 2:
         sum_signal_per_chamber = np.sum(true_energy, axis=1)
-        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
+        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[1])[0]
     else:
-        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[0])[0]
+        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[1])[0]
 
     return signal, true_energy
 
@@ -43,7 +43,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
                 return np.inf
             else:
                 return -np.inf
-    for i in range(len(actual_observed)):
+    for i in range(len(actual_observed)-1):
         if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
             if negative_log:
                 return np.inf
@@ -52,13 +52,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
         #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
         part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
         # Part Two = gi*ln((Af(x)_i)
-        try:
-            part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
-        except ValueError:
-            print('?')
-            print(np.dot(detector_matrix, f))
-            print(f)
-            exit()
+        part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
         # Part Three = (Af(x)_i)
         part_three = (np.dot(detector_matrix, f)[i])
         before_regularize.append(part_one - part_two + part_three)
@@ -517,14 +511,14 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
     signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
     C = calculate_C(detector_response_matrix)
     sampler = emcee.EnsembleSampler(nwalkers=num_walkers,
-                                    dim=detector_response_matrix.shape[0],
+                                    dim=detector_response_matrix.shape[1],
                                     lnpostfn=log_likelihood,
                                     threads=num_threads,
                                     args=(signal, detector_response_matrix, tau, C, regularized, False))
 
     total_steps = num_burn_steps + num_used_steps
-    uniform_start = np.ones(shape=detector_response_matrix.shape[0])
-    starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[0]), dtype=np.float32)
+    uniform_start = np.ones(shape=detector_response_matrix.shape[1])
+    starting_positions = np.zeros((num_walkers, detector_response_matrix.shape[1]), dtype=np.float32)
     for index, value in enumerate(uniform_start):
         starting_positions[:, index] = np.abs(random_state.poisson(np.sum(signal)/len(signal), size=num_walkers))
 
@@ -533,7 +527,7 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
                                                         rstate0=random_state.get_state())
 
     samples = sampler.chain[:, num_burn_steps:, :]
-    samples = samples.reshape((-1, detector_response_matrix.shape[0]))
+    samples = samples.reshape((-1, detector_response_matrix.shape[1]))
 
     probabilities = sampler.lnprobability[:, num_burn_steps:]
     probabilities = probabilities.reshape((-1))
