@@ -5,7 +5,7 @@ from unfolding import matrix_inverse_unfolding, obtain_coefficients, svd_unfoldi
     mcmc_unfolding
 import evaluate_unfolding
 import evaluate_detector
-
+import corner
 import funfolding as ff
 
 
@@ -178,6 +178,42 @@ def test_multiple_datasets_std(random_state=None, method=matrix_inverse_unfoldin
         # evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors), np.std(array_of_unfolding_errors))
 
 
+def test_same_dataset_std(random_state=None, detector_data=None, method=mcmc_unfolding, num_datasets=20, plot=False):
+
+    if detector_data is not None:
+        signal, true_hits, energies_return, detector_matrix = detector_data
+
+    # Array to hold the arrays of means and stuff
+    array_of_unfolding_errors = []
+    array_of_probabilities = []
+    array_of_maxes = []
+
+    for i in range(num_datasets):
+        print(i)
+        try:
+            mcmc_results = method(signal, true_hits, detector_matrix, random_state=random_state, regularized=False)
+            array_of_unfolding_errors.append(mcmc_results[0])
+            array_of_probabilities.append(mcmc_results[1])
+            array_of_maxes.append(mcmc_results[3])
+        except:
+            print("One Error")
+            continue
+
+    print("Total Number of Results: " + str(len(array_of_probabilities)) + "/" + str(num_datasets))
+    print("Mean Samples (All): " + str(np.mean(array_of_unfolding_errors)))
+    print("Std Samples (All): " + str(np.std(array_of_unfolding_errors)))
+
+    print("Mean Probs (All): " + str(np.mean(array_of_probabilities)))
+    print("Std Probs (All): " + str(np.std(array_of_probabilities)))
+
+    print("Mean Max Probs (All): " + str(np.mean(array_of_maxes)))
+    print("Std Max Probs (All): " + str(np.std(array_of_maxes)))
+
+    if plot:
+        evaluate_unfolding.plot_error_stats(np.mean(array_of_unfolding_errors, axis=1),
+                                            np.std(array_of_unfolding_errors, axis=1))
+
+
 def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, cutoff=5, num_bins=20, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
@@ -310,16 +346,16 @@ def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_c
         print("Difference: " + str(y_vector[0] - row_unfolding_results[0]))
 
 
-def test_llh_unfolding(random_state=None, detector_data=None,  tau=1, unfolding=True, num_bins=20,
+def test_llh_unfolding(random_state=None, detector_data=None, tau=1., unfolding=True,
                        regularized=True, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
-    if detector_data:
+    if detector_data is not None:
         signal, true_hits, energies_return, detector_matrix = detector_data
 
     llh_unfolding_results = llh_unfolding(signal, energies_return, detector_matrix, tau=tau, unfolding=unfolding,
-                                          regularized=regularized, num_bins=num_bins)
+                                          regularized=regularized, num_bins=detector_matrix.shape[0])
 
     if true_hits.ndim == 2:
         sum_true_energy = np.sum(true_hits, axis=1)
@@ -334,8 +370,6 @@ def test_llh_unfolding(random_state=None, detector_data=None,  tau=1, unfolding=
 
 
 def test_mcmc_unfolding(random_state=None, detector_data=None, tau=1., regularized=True, plot=False):
-    if not isinstance(random_state, np.random.RandomState):
-        random_state = np.random.RandomState(random_state)
 
     if detector_data is not None:
         signal, true_hits, energies_return, detector_matrix = detector_data
@@ -347,15 +381,17 @@ def test_mcmc_unfolding(random_state=None, detector_data=None, tau=1., regulariz
 
     if true_hits.ndim == 2:
         sum_true_energy = np.sum(true_hits, axis=1)
-        true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])
+        true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])[0]
 
     if plot:
+        evaluate_unfolding.plot_corner(mcmc_unfolding_results[0], energies=true_hits)
         evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0],
                                                            mcmc_unfolding_results[0][mcmc_unfolding_results[3]],
                                                            mcmc_unfolding_results[2])
 
 
-def generate_data(random_state=None, noise=True, smearing=True, resolution_val=1., noise_val=0., response_bins=20, rectangular_bins=20):
+def generate_data(random_state=None, noise=True, smearing=True, resolution_val=1., noise_val=0., response_bins=20,
+                  rectangular_bins=20):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
@@ -388,20 +424,21 @@ def bin_data(signal, true_energy, detector_response_matrix):
 
     return signal, true_energy
 
+
 if __name__ == "__main__":
     model = ff.model.BasicLinearModel()
-    dataset = generate_data(1347, response_bins=20, rectangular_bins=20)
-    #reloaded_data = dataset
-    #np.save("detector_data_10", arr=dataset)
-    reloaded_data = np.load("detector_data.npy")
+    dataset = generate_data(1347, response_bins=30, rectangular_bins=20)
+    # np.save("detector_data_10", arr=dataset)
+    #reloaded_data = np.load("detector_data.npy")
+    reloaded_data = dataset
 
     if True:
         print(reloaded_data[0].shape)
         sum_signal_per_chamber = np.sum(reloaded_data[0], axis=1)
         sum_true_per_chamber = np.sum(reloaded_data[1], axis=1)
         print(sum_signal_per_chamber.shape)
-        binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, 11)
-        binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, 31)
+        binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, 21)
+        binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, 21)
 
         binned_g = np.digitize(sum_signal_per_chamber, binning_g)
         binned_f = np.digitize(sum_true_per_chamber, binning_f)
@@ -424,10 +461,14 @@ if __name__ == "__main__":
         for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
             str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
         print('{}\t{}'.format(str_0, str_1))
+        print(probs[np.argmax(probs)])
+        corner.corner(sample, truths=vec_f, quantiles=[0.16],
+                      show_titles=True,)
+        plt.show()
 
-    test_mcmc_unfolding(1347, tau=0.5, detector_data=reloaded_data, regularized=False, plot=False)
-    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, smearing=True, noise=True, noise_val=0000000.,
-    #                   resolution_val=1., unfolding=False)
+    #test_same_dataset_std(1347, reloaded_data, )
+    test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )

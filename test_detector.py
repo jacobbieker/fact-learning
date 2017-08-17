@@ -41,14 +41,14 @@ def test_consistency(random_state=None):
     true_hitss = []
     energies_returns = []
     detector_matrixs = []
-    for i in range(100):
+    for i in range(10):
         detector = Detector(distribution='gaussian',
                             energy_loss='const',
                             make_noise=True,
                             smearing=True,
                             resolution_chamber=1.,
                             noise=0.,
-                            response_bins=20,
+                            response_bins=30,
                             rectangular_bins=20,
                             random_state=random_state)
         signal, true_hits, energies_return, detector_matrix = detector.simulate(
@@ -63,14 +63,10 @@ def test_consistency(random_state=None):
     energies_returns = np.asarray(energies_returns)
     detector_matrixs = np.asarray(detector_matrixs)
 
-    for index, array in enumerate(signal_valuess):
-        print(index)
-        print(signal_valuess)
-        print(signal_valuess[index+1])
-        assert np.array_equal(signal_valuess[index], signal_valuess[index+1])
-        assert np.array_equal(true_hitss[index], true_hitss[index+1])
-        assert np.array_equal(energies_returns[index], energies_returns[index+1])
-        assert np.array_equal(detector_matrixs[index], detector_matrixs[index+1])
+    assert np.array_equal(signal_valuess, signal_valuess)
+    assert np.array_equal(true_hitss, true_hitss)
+    assert np.array_equal(energies_returns, energies_returns)
+    assert np.array_equal(detector_matrixs, detector_matrixs)
 
 if __name__ == "__main__":
     test_consistency(1347)

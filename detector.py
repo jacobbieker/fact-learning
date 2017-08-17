@@ -280,3 +280,21 @@ class Detector:
         # pprint.pprint(A_column_Norm)
 
         return A_col_Norm
+
+    def get_binning(self, original_energy_distribution, signal):
+        binnings = []
+        for r in [(min(signal), max(signal)), (min(original_energy_distribution), max(original_energy_distribution))]:
+            low = r[0]
+            high = r[-1]
+            binnings.append(np.linspace(low, high+1, high-low+2))
+        return binnings[0], binnings[1]
+
+    def get_response_matrix2(self, original_energy_distribution, signal):
+        binning_g, binning_f = self.get_binning(original_energy_distribution, signal)
+        response_matrix = np.histogram2d(signal, original_energy_distribution, bins=(binning_g, binning_f))[0]
+        normalizer = np.diag(1 / np.sum(response_matrix, axis=0))
+        response_matrix = np.dot(response_matrix, normalizer)
+
+        # response_matrix.shape[1] is the one for f, the true distribution binning
+        # response_matrix.shape[0] is for the binning of g
+        return response_matrix

@@ -19,11 +19,14 @@ def plot_true_vs_signal(true_vector, detected_signal, energies, num_bins=20):
     plt.yscale('log')
     plt.show()
 
+
 def plot_corner(unfolded_vector, energies=None, title=None):
-    figure = corner.corner(unfolded_vector, quantiles=[0.16],
-                           show_titles=True)
-    plt.plot(figure)
+    corner.corner(unfolded_vector,
+                  quantiles=[0.16],
+                  show_titles=True,
+                  truths=energies)
     plt.show()
+
 
 def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")

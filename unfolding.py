@@ -20,23 +20,35 @@ def bin_data(signal, true_energy, detector_response_matrix):
 
 
 def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True, negative_log=True):
-    # print("Shape f:" + str(f.shape))
-    # print("Shape detector_side: " + str(detector_matrix.shape))
-    # print("Observed shape:" + str(actual_observed.shape))
+    """
+    Calculate the log likelihood and returns -inf or inf if the input involves a negative number
+    :param f:
+    :param actual_observed:
+    :param detector_matrix:
+    :param tau:
+    :param C:
+    :param regularized:
+    :param negative_log:
+    :return:
+    """
     before_regularize = []
     if np.asarray(actual_observed).any() <= 0:
         if negative_log:
             return np.inf
         else:
             return -np.inf
+    for element in f:
+        if element <= 0:
+            if negative_log:
+                return np.inf
+            else:
+                return -np.inf
     for i in range(len(actual_observed)):
         if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
             if negative_log:
                 return np.inf
             else:
                 return -np.inf
-        # Not sure if this is correct change from the product one to this, if the summing over the ith column in
-        # A is what is supposed to be the case, or the ith row, or something else Mathy, it should be Sum(ln(gi!)
         #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
         part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
         # Part Two = gi*ln((Af(x)_i)
@@ -47,29 +59,18 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
             print(np.dot(detector_matrix, f))
             print(f)
             exit()
-        # print("Shape part two: " + str(part_two.shape))
         # Part Three = (Af(x)_i)
         part_three = (np.dot(detector_matrix, f)[i])
-        # print("Shape part three: " + str(part_three.shape))
-        # print("Shape of three parts: " + str((part_one - part_two + part_three).shape))
         before_regularize.append(part_one - part_two + part_three)
     # Prior is the 1/2 * tau * f(x).T * C' * f(x)
     if regularized:
         prior = (0.5 * tau * np.dot(np.dot(np.log(f.T + 1), np.dot(C.T, C)), np.log(f + 1)))
     else:
         prior = 0
-    # print(prior)
-    # print(len(before_regularize))
     likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
-    # print(likelihood_log)
-    # print(max(likelihood_log))
-    # But what happens to the 1/ root(2pi^n *det (tau 1)) part? Just disappears?
-    # Yes, it does because constant and just wastes time computing them for the minimization
     if negative_log:
-        #print("Negative Log: \n" + str(likelihood_log))
         return likelihood_log
     else:
-        #print("Positive Log: \n" + str(-1*likelihood_log))
         return likelihood_log * -1
 
 def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
@@ -511,7 +512,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
 def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=100, num_used_steps=2000,
                    num_burn_steps=1000, random_state=None, num_threads=1, tau=0., regularized=False):
     if not isinstance(random_state, np.random.RandomState):
-        random_state = np.random.RandomState(random_state)
+        random_state = np.random.mtrand.RandomState(random_state)
 
     signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
     C = calculate_C(detector_response_matrix)
@@ -529,7 +530,7 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
 
     new_true, samples, probabilities = sampler.run_mcmc(pos0=starting_positions,
                                                         N=total_steps,
-                                                        rstate0=random_state)
+                                                        rstate0=random_state.get_state())
 
     samples = sampler.chain[:, num_burn_steps:, :]
     samples = samples.reshape((-1, detector_response_matrix.shape[0]))
@@ -542,6 +543,6 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
     print(probabilities.shape)
     print(max_likelihood)
     print(probabilities[max_likelihood])
-    corner.corner(samples, truths=signal)
-    plt.show()
-    return samples, probabilities, new_true, max_likelihood
+    #corner.corner(samples, truths=signal)
+    #plt.show()
+    return samples, probabilities, new_true, probabilities[max_likelihood]
