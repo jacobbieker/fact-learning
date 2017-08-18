@@ -468,7 +468,7 @@ if __name__ == "__main__":
 
     #test_same_dataset_std(1347, reloaded_data, )
     test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
-    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
+    test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )

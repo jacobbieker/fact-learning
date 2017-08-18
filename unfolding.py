@@ -7,14 +7,19 @@ import corner
 
 
 def bin_data(signal, true_energy, detector_response_matrix):
-    if signal.ndim == 2:
-        sum_signal_per_chamber = np.sum(signal, axis=1)
-        signal = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[0])[0]
     if true_energy.ndim == 2:
-        sum_signal_per_chamber = np.sum(true_energy, axis=1)
-        true_energy = np.histogram(sum_signal_per_chamber, bins=detector_response_matrix.shape[1])[0]
-    else:
-        true_energy = np.histogram(true_energy, bins=detector_response_matrix.shape[1])[0]
+        true_energy = np.sum(true_energy, axis=1)
+    if signal.ndim == 2:
+        signal = np.sum(signal, axis=1)
+
+    binning_f = np.linspace(min(true_energy) - 1e-3, max(true_energy) + 1e-3, detector_response_matrix.shape[1])
+    binning_g = np.linspace(min(signal) - 1e-3, max(signal) + 1e-3, detector_response_matrix.shape[0])
+
+    #3 signal = np.digitize(np.sum(signal, axis=1), binning_g)
+    #true_hits = np.digitize(energies, binning_f)
+
+    signal = np.histogram(signal, bins=binning_g)[0]
+    true_energy = np.histogram(true_energy, bins=binning_f)[0]
 
     return signal, true_energy
 
@@ -43,7 +48,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
                 return np.inf
             else:
                 return -np.inf
-    for i in range(len(actual_observed)-1):
+    for i in range(len(actual_observed)):
         if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
             if negative_log:
                 return np.inf
@@ -537,6 +542,4 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
     print(probabilities.shape)
     print(max_likelihood)
     print(probabilities[max_likelihood])
-    #corner.corner(samples, truths=signal)
-    #plt.show()
     return samples, probabilities, new_true, probabilities[max_likelihood]
