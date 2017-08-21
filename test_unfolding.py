@@ -355,7 +355,7 @@ def test_llh_unfolding(random_state=None, detector_data=None, tau=1., unfolding=
         signal, true_hits, energies_return, detector_matrix = detector_data
 
     llh_unfolding_results = llh_unfolding(signal, energies_return, detector_matrix, tau=tau, unfolding=unfolding,
-                                          regularized=regularized, num_bins=detector_matrix.shape[0])
+                                          regularized=regularized)
 
     if true_hits.ndim == 2:
         sum_true_energy = np.sum(true_hits, axis=1)
@@ -466,13 +466,13 @@ if __name__ == "__main__":
                       show_titles=True,)
         plt.show()
 
-    #test_same_dataset_std(1347, reloaded_data, )
-    test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
-    test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
+    # test_same_dataset_std(1347, reloaded_data, )
+    # test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )
-    # test_svd_unfolding(1347, plot=False)
+    test_svd_unfolding(1347, detector_data=reloaded_data, plot=False)
     # test_epsilon_svd_unfolding(1347, plot=True)
     # test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
     # test_multiple_datasets_std(1347, method=svd_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)

@@ -68,7 +68,7 @@ def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=No
     plt.hist(bin_center, weights=energies, bins=binning, normed=False,
              label="True Energy", histtype='step')
     plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
-    plt.hist(bin_center, bins=binning, weights=signal, histtype='step', label='Signal')
+#    plt.hist(bin_center, bins=binning, weights=signal, histtype='step', label='Signal')
     # x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
     # x_vector = powerlaw.pdf(x_pdf_space, 0.70)
     # plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')

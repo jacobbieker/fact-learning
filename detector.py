@@ -246,6 +246,16 @@ class Detector:
         signal = self.generate_chamber_signal(chamber_hits)
         detector_matrix = self.get_response_matrix2(energies, signal)
 
+        binning_f = np.linspace(min(energies) - 1e-3, max(energies) + 1e-3, self.rectangular_bins)
+        binning_g = np.linspace(min(np.sum(signal, axis=1)) - 1e-3, max(np.sum(signal, axis=1)) + 1e-3, self.response_bins)
+
+        #3 signal = np.digitize(np.sum(signal, axis=1), binning_g)
+        #true_hits = np.digitize(energies, binning_f)
+
+        signal = np.histogram(np.sum(signal, axis=1), bins=binning_g)[0]
+        true_hits = np.histogram(energies, bins=binning_f)[0]
+        energies = true_hits
+
         return signal, true_hits, energies, detector_matrix
 
     def get_response_matrix(self, original_energy_distribution, signal):
@@ -308,7 +318,6 @@ class Detector:
 
         # response_matrix.shape[1] is the one for f, the true distribution binning
         # response_matrix.shape[0] is for the binning of g
-        print(response_matrix)
         print(response_matrix.shape)
 
         return response_matrix

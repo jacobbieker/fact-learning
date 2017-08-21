@@ -12,8 +12,8 @@ def bin_data(signal, true_energy, detector_response_matrix):
     if signal.ndim == 2:
         signal = np.sum(signal, axis=1)
 
-    binning_f = np.linspace(min(true_energy) - 1e-3, max(true_energy) + 1e-3, detector_response_matrix.shape[1])
-    binning_g = np.linspace(min(signal) - 1e-3, max(signal) + 1e-3, detector_response_matrix.shape[0])
+    binning_f = np.linspace(min(true_energy) - 1e-3, max(true_energy) + 1e-3, detector_response_matrix.shape[1]+1)
+    binning_g = np.linspace(min(signal) - 1e-3, max(signal) + 1e-3, detector_response_matrix.shape[0]+1)
 
     #3 signal = np.digitize(np.sum(signal, axis=1), binning_g)
     #true_hits = np.digitize(energies, binning_f)
@@ -98,13 +98,13 @@ def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularize
 
 
 def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
-    H = np.zeros(shape=detector_matrix.shape, dtype=np.float64)
+    H = np.zeros(shape=(detector_matrix.shape[1], detector_matrix.shape[1]), dtype=np.float64)
     # print(H.shape)
     # Trying to get d^2S/df_kdf_l = Hk,l = This?
-    for k in range(H.shape[0]):
-        for l in range(H.shape[0]):
+    for k in range(H.shape[1]):
+        for l in range(H.shape[1]):
             possion_part = 0
-            for i in range(H.shape[1]):
+            for i in range(detector_matrix.shape[0]):
                 top_part = actual_observed[i] * detector_matrix[i, k] * detector_matrix[i, l]
                 bottom_part = np.sum(detector_matrix[i, :] * f)
 
@@ -323,6 +323,15 @@ def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     # So need to undo that
     d = np.dot(u.T, signal)
 
+    A_inv = np.dot(v.T, np.dot(s, u.T))
+    vec_f = np.dot(signal, A_inv.T)
+    vec_f = np.real(vec_f)
+    V_y = np.diag(signal)
+    V_f_est = np.real(np.dot(A_inv, np.dot(V_y, A_inv.T)))
+    factor = np.sum(signal) / np.sum(vec_f)
+    vec_f *= factor
+    V_f_est *= factor
+
     # d_i = s_iz_i so z_i = d_i/s_i
     z_i = np.zeros_like(s)
     for index, i, in enumerate(d):
@@ -375,8 +384,7 @@ def svd_unfolding(signal, detector_response_matrix, cutoff=None):
     return unfolded_signal, d, s, z_i
 
 
-def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=True, plot=False, regularized=True,
-                  num_bins=20):
+def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=True, plot=False, regularized=True):
     # If we need the Hessian, the Numdifftools should give it to us with this
 
     # Pretty sure should only need the response matrix Hessian, since that gives the curvature of the probabilities
@@ -386,7 +394,7 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
 
     # First need to bin the true energy, same as the detector matrix currently
 
-    signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
+    #signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
 
     C = calculate_C(np.diag(signal))
 
@@ -397,9 +405,9 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
     # plt.plot(not_log_like)
     # plt.show()
     likelihood_value = log_likelihood(true_energy, signal, detector_matrix=detector_response_matrix, tau=tau, C=C,
-                                      regularized=regularized)
+                                      regularized=regularized, negative_log=True)
     better_likelihood = log_likelihood(true_energy, true_energy, np.identity(true_energy.shape[0]), tau, C,
-                                       regularized=regularized)
+                                       regularized=regularized, negative_log=True)
     print("Difference between Perfect Detector - Non Perfect one: " + str(better_likelihood - likelihood_value))
     #    fig = plt.figure()
     #    xval = np.arange(0.0, likelihood_value.shape[0])
@@ -410,10 +418,10 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
         plt.ylabel("Likelihood")
         # plt.yscale('log')
         plt.show()
-    gradient = gradient_array(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
+    gradient = gradient_array(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime, regularized=regularized)
     print("Gradient Shape: " + str(gradient.shape))
     print("Gradient: " + str(gradient))
-    hessian = hessian_matrix(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime)
+    hessian = hessian_matrix(true_energy, signal, detector_response_matrix, tau=tau, C_prime=C_prime, regularized=regularized)
     print("Hessian Shape: " + str(hessian[0].shape))
     print("Hessian Diagonal: " + str(np.diag(hessian[0])))
     #    print("Difftools Hessian Diagonal: " + str(np.diag(hessian_detector)))
@@ -460,7 +468,6 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
             else:
                 print("BREAKING AFTER " + str(iterations) + " ITERATIONS")
                 break
-            print(new_true - signal)
             # Basically, if the new_true value, the value we are trying to minimize, then if it is larger, we should follow that and change the
             # "true" distribution accordingly in that direction by the change in a, then rerun the iteration...
             gradient_update = gradient_array(new_true, signal,
@@ -473,11 +480,6 @@ def llh_unfolding(signal, true_energy, detector_response_matrix, tau, unfolding=
 
             print(change_in_a)
         print("Difference between real true and new true (New True/Real True):\n " + str(new_true / true_energy))
-        print("Difference between signal and real true (Signal/Real True):\n " + str(signal / true_energy))
-        print("Difference between the two above ones (New_True Array - Signal Array):\n " + str(
-            (new_true / true_energy) - (signal / true_energy)))
-        print("(Real_True / Signal:\n" + str(true_energy / signal))
-        print("(New True / Signal): \n" + str(new_true / signal))
         print(iterations)
         return new_true, signal, true_energy, hessian_error
     else:
@@ -513,7 +515,7 @@ def mcmc_unfolding(signal, true_energy, detector_response_matrix, num_walkers=10
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.mtrand.RandomState(random_state)
 
-    signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
+    # signal, true_energy = bin_data(signal, true_energy, detector_response_matrix)
     C = calculate_C(detector_response_matrix)
     sampler = emcee.EnsembleSampler(nwalkers=num_walkers,
                                     dim=detector_response_matrix.shape[1],
