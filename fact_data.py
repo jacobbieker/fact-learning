@@ -1,8 +1,11 @@
 import funfolding as ff
+from funfolding import discretization
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import corner
+import evaluate_unfolding
+import unfolding
 
 import multiprocessing
 
@@ -46,11 +49,11 @@ Run on vollmond probably, since it takes a long time
 
 log = logging.getLogger("setup_pypet")
 
-#df = pd.read_hdf("gamma_precuts.hdf5")
-#print(list(df))
+# df = pd.read_hdf("gamma_precuts.hdf5")
+# print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
-mc_df = read_h5py("gamma_test.hdf5", key='events')
-print(list(mc_df))
+#mc_df = read_h5py("gamma_test.hdf5", key='events')
+#print(list(mc_df))
 
 
 def load_gamma_subset(sourcefile,
@@ -97,12 +100,74 @@ def convert_to_log(dataset):
     dataset.corsika_evt_header_total_energy = np.log10(
         dataset.corsika_evt_header_total_energy)
     dataset.gamma_energy_prediction = np.log10(dataset.gamma_energy_prediction)
-    #dataset.conc_core= np.log10(dataset.conc_core)
+    # dataset.conc_core= np.log10(dataset.conc_core)
     dataset.size = np.log10(dataset.size)
     dataset.length = np.log10(dataset.length)
     dataset.num_pixel_in_shower = np.log10(
         dataset.num_pixel_in_shower)
     return dataset
+
+
+def decision_tree(dataset_test, dataset_train, tree_obs, random_state=None):
+    X_tree = dataset_train.get(tree_obs).values
+    X_tree_test = dataset_test.get(tree_obs).values
+    binning_E = np.linspace(2.4, 4.2, 10)
+    binned_E = np.digitize(dataset_train.corsika_evt_header_total_energy,
+                           binning_E)
+    binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
+                                binning_E)
+
+    tree_binning = discretization.TreeBinningSklearn(max_leaf_nodes=20, random_state=random_state)
+    tree_binning.fit(X_tree_test, binned_E_test)
+
+    print(tree_binning.tree.tree_.feature)
+    print(len(tree_binning.tree.tree_.feature))
+
+    #tree_binning = discretization.TreeBinning()
+
+    #tree_binning.fit(X_tree_test, binned_E_test)
+
+    #print(tree_binning.tree.feature)
+    #print(tree_binning.tree.threshold)
+    return tree_binning, tree_binning.digitize(X_tree_test)
+
+def classic_tree(dataset_test, dataset_train, plot=False):
+    X = dataset_train.get(['conc_core', 'gamma_energy_prediction']).values
+    X_test = dataset_test.get(['conc_core', 'gamma_energy_prediction']).values
+
+    binning_E = np.linspace(2.4, 4.2, 10)
+    binned_E = np.digitize(dataset_train.corsika_evt_header_total_energy,
+                           binning_E)
+    binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
+                                binning_E)
+    classic_binning = ff.discretization.ClassicBinning(
+        bins=[15, 25])
+    classic_binning.fit(X)
+    if plot:
+        fig, ax = plt.subplots()
+        ff.discretization.visualize_classic_binning(ax,
+                                                    classic_binning,
+                                                    X,
+                                                    log_c=True,
+                                                    cmap='viridis')
+        fig.savefig('05_fact_example_original_binning_log.png')
+
+    closest = classic_binning.merge(X_test,
+                                    min_samples=10,
+                                    max_bins=20,
+                                    mode='closest')
+    if plot:
+        fig, ax = plt.subplots()
+        ff.discretization.visualize_classic_binning(ax,
+                                                    closest,
+                                                    X,
+                                                    log_c=True,
+                                                    cmap='viridis')
+
+        fig.savefig('05_fact_example_original_binning_closest_log.png')
+
+    return closest, X
+
 
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
@@ -118,35 +183,43 @@ if __name__ == '__main__':
     df_test = on_data[10000:]
     df_train = on_data[:10000]
 
-    X = df_train.get(['conc_core', 'gamma_energy_prediction']).values
-    X_test = df_test.get(['conc_core', 'gamma_energy_prediction']).values
+    tree_obs = ["size",
+                "width",
+                "length",
+                "m3_trans",
+                "m3_long",
+                "conc_core",
+                "m3l",
+                "m3t",
+                "concentration_one_pixel",
+                "concentration_two_pixel",
+                "leakage",
+                "leakage2",
+                "conc_cog",
+                "num_islands",
+                "num_pixel_in_shower",
+                "ph_charge_shower_mean",
+                "ph_charge_shower_variance",
+                "ph_charge_shower_max"]
 
-    binning_E = np.linspace(2.4, 4.2, 10)
-    binned_E = np.digitize(df_train.corsika_evt_header_total_energy,
-                           binning_E)
-    binned_E_test = np.digitize(df_test.corsika_evt_header_total_energy,
-                                binning_E)
-    classic_binning = ff.discretization.ClassicBinning(
-        bins = [15, 25])
+    tree_repr, digitized_tree = decision_tree(df_test, df_train, tree_obs=tree_obs)
+    closest_bins, X_vals = classic_tree(df_test, df_train)
 
-    fig, ax = plt.subplots()
-    ff.discretization.visualize_classic_binning(ax,
-                                             classic_binning,
-                                             X,
-                                             log_c=True,
-                                             cmap='viridis')
-    fig.savefig('05_fact_example_original_binning_log.png')
+    binned_closest = closest_bins.histogram(X_vals)
 
-    closest = classic_binning.merge(X_test,
-                                    min_samples=10,
-                                    max_bins=None,
-                                    mode='closest')
-    fig, ax = plt.subplots()
-    ff.discretization.visualize_classic_binning(ax,
-                                             closest,
-                                             X,
-                                             log_c=True,
-                                             cmap='viridis')
+    print(len(np.unique(digitized_tree)))
+    print(len(digitized_tree))
 
-    fig.savefig('05_fact_example_original_binning_closest_log.png')
+    counts_per_bin = np.zeros(shape=(len(np.unique(digitized_tree))))
+    for element in digitized_tree:
+        counts_per_bin[element] += 1
 
+    # Now have the counts per each bin in the fit
+    if False:
+        plt.plot(counts_per_bin)
+        plt.title("Counts per bin from TreeBinningSklearn")
+        plt.ylabel("Counts")
+        plt.xlabel("Bin Number")
+        plt.show()
+
+    evaluate_unfolding.plot_unfolded_vs_true(counts_per_bin, energies=binned_closest, title="Counts from TreeBinningSklrean")

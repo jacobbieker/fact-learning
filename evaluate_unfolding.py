@@ -41,9 +41,9 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, t
     plt.hist(bin_center, weights=true_hits[0], bins=binning, normed=False,
              label="True Energy", histtype='step')
     plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
-    x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
-    x_vector = powerlaw.pdf(x_pdf_space, 0.70)
-    plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
+    #x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
+    #x_vector = powerlaw.pdf(x_pdf_space, 0.70)
+    #plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
     # plt.errorbar(unfolded_vector, y=y_values[0], yerr=sigma_x_unf)
     if not title:
         plt.title("Number of Particles: " + str(energies.shape[0]))
