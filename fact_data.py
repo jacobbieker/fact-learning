@@ -49,8 +49,8 @@ log = logging.getLogger("setup_pypet")
 #df = pd.read_hdf("gamma_precuts.hdf5")
 #print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
-#mc_df = read_h5py("gamma_test.hdf5", key='events')
-#print(list(mc_df))
+mc_df = read_h5py("gamma_test.hdf5", key='events')
+print(list(mc_df))
 
 
 def load_gamma_subset(sourcefile,
@@ -93,15 +93,22 @@ def load_gamma_subset(sourcefile,
     return on_mc, on_data, off_data
 
 
+def convert_to_log(dataset):
+    dataset.corsika_evt_header_total_energy = np.log10(
+        dataset.corsika_evt_header_total_energy)
+    dataset.gamma_energy_prediction = np.log10(dataset.gamma_energy_prediction)
+    #dataset.conc_core= np.log10(dataset.conc_core)
+    dataset.size = np.log10(dataset.size)
+    dataset.length = np.log10(dataset.length)
+    dataset.num_pixel_in_shower = np.log10(
+        dataset.num_pixel_in_shower)
+    return dataset
+
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
 
     # 0's are off
-    #with np.errstate(divide='ignore'):
-    on_data.conc_core = np.log10(on_data.conc_core)
-    on_data.gamma_energy_prediction = np.log10(on_data.gamma_energy_prediction)
-    #on_data.conc_core.loc[np.isnan(on_data.conc_core)] = 0.000001
-    #on_data.gamma_energy_prediction.loc[np.isnan(on_data.gamma_energy_prediction)] = 0.000001
+    on_data = convert_to_log(on_data)
 
     print(on_data.shape)
     print(off_data.shape)
@@ -121,15 +128,14 @@ if __name__ == '__main__':
                                 binning_E)
     classic_binning = ff.discretization.ClassicBinning(
         bins = [15, 25])
-    print(classic_binning.fit(X))
 
     fig, ax = plt.subplots()
     ff.discretization.visualize_classic_binning(ax,
                                              classic_binning,
                                              X,
-                                             log_c=False,
+                                             log_c=True,
                                              cmap='viridis')
-    fig.savefig('05_fact_example_original_binning.png')
+    fig.savefig('05_fact_example_original_binning_log.png')
 
     closest = classic_binning.merge(X_test,
                                     min_samples=10,
@@ -139,8 +145,8 @@ if __name__ == '__main__':
     ff.discretization.visualize_classic_binning(ax,
                                              closest,
                                              X,
-                                             log_c=False,
+                                             log_c=True,
                                              cmap='viridis')
 
-    fig.savefig('05_fact_example_original_binning_closest.png')
+    fig.savefig('05_fact_example_original_binning_closest_log.png')
 
