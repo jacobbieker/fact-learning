@@ -52,8 +52,10 @@ log = logging.getLogger("setup_pypet")
 # df = pd.read_hdf("gamma_precuts.hdf5")
 # print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
-#mc_df = read_h5py("gamma_test.hdf5", key='events')
-#print(list(mc_df))
+
+
+# mc_df = read_h5py("gamma_test.hdf5", key='events')
+# print(list(mc_df))
 
 
 def load_gamma_subset(sourcefile,
@@ -117,19 +119,20 @@ def decision_tree(dataset_test, dataset_train, tree_obs, random_state=None):
     binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
                                 binning_E)
 
-    tree_binning = discretization.TreeBinningSklearn(max_leaf_nodes=20, random_state=random_state)
+    tree_binning = discretization.TreeBinningSklearn(random_state=random_state)
     tree_binning.fit(X_tree_test, binned_E_test)
 
     print(tree_binning.tree.tree_.feature)
     print(len(tree_binning.tree.tree_.feature))
 
-    #tree_binning = discretization.TreeBinning()
+    # tree_binning = discretization.TreeBinning()
 
-    #tree_binning.fit(X_tree_test, binned_E_test)
+    # tree_binning.fit(X_tree_test, binned_E_test)
 
-    #print(tree_binning.tree.feature)
-    #print(tree_binning.tree.threshold)
+    # print(tree_binning.tree.feature)
+    # print(tree_binning.tree.threshold)
     return tree_binning, tree_binning.digitize(X_tree_test)
+
 
 def classic_tree(dataset_test, dataset_train, plot=False):
     X = dataset_train.get(['conc_core', 'gamma_energy_prediction']).values
@@ -167,6 +170,55 @@ def classic_tree(dataset_test, dataset_train, plot=False):
         fig.savefig('05_fact_example_original_binning_closest_log.png')
 
     return closest, X
+
+
+def get_binning(original_energy_distribution, signal):
+    binnings = []
+    for r in [(min(signal), max(signal)), (min(original_energy_distribution), max(original_energy_distribution))]:
+        low = r[0]
+        high = r[-1]
+        binnings.append(np.linspace(low, high + 1, high - low + 2))
+    return binnings[0], binnings[1]
+
+
+def get_response_matrix2(original_energy_distribution, signal, bins=[15, 25]):
+    sum_signal_per_chamber = signal
+    sum_true_per_chamber = original_energy_distribution
+
+    binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, bins[0])
+    binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, bins[1])
+
+    binned_g = np.digitize(sum_signal_per_chamber, binning_g)
+    binned_f = np.digitize(sum_true_per_chamber, binning_f)
+
+    binning_g, binning_f = get_binning(binned_f, binned_g)
+
+    response_matrix = np.histogram2d(binned_g, binned_f, bins=(binning_g, binning_f))[0]
+    normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
+    response_matrix = np.dot(response_matrix, normalizer)
+
+    # response_matrix.shape[1] is the one for f, the true distribution binning
+    # response_matrix.shape[0] is for the binning of g
+    print(response_matrix.shape)
+
+    return response_matrix
+
+
+def get_detector_matrix(dataset, bin_true=10, bin_detected=20, plot=False):
+    '''
+    Try to get the 'detector matrix' from the dataset (although is it really the response matrix?)
+    :param dataset:
+    :param plot:
+    :return:
+    '''
+
+    # Real energy is the corsika evt header total energy
+    real_energy = dataset.corsika_evt_header_total_energy
+    # Detected energy is, I think, the gamma_energy_prediction
+    detected_energy = dataset.gamma_energy_prediction
+
+    # Now make the matrix?
+    np.histogram2d(real_energy, detected_energy, bins=[bin_true, bin_detected])
 
 
 if __name__ == '__main__':
@@ -222,4 +274,21 @@ if __name__ == '__main__':
         plt.xlabel("Bin Number")
         plt.show()
 
-    evaluate_unfolding.plot_unfolded_vs_true(counts_per_bin, energies=binned_closest, title="Counts from TreeBinningSklrean")
+        evaluate_unfolding.plot_unfolded_vs_true(counts_per_bin, energies=binned_closest,
+                                                 title="Counts from TreeBinningSklrean")
+
+    # Get the eigenvalues/vectors of the results to compare vs the noise
+    real_energy = df_test.corsika_evt_header_total_energy
+    # Detected energy is, I think, the gamma_energy_prediction
+    detected_energy = df_test.gamma_energy_prediction
+    detector_matrix = get_response_matrix2(real_energy, detected_energy)
+
+    u, s, v = np.linalg.svd(detector_matrix)
+    eigen_vals = np.absolute(s)
+    sorting = np.argsort(eigen_vals)[::-1]
+    eigen_vals = eigen_vals[sorting]
+    # U = eigen_vecs
+    D = np.diag(eigen_vals)
+    kappa = max(eigen_vals) / min(eigen_vals)
+    print("Kappa:\n", str(kappa))
+    evaluate_unfolding.plot_eigenvalues(eigen_vals)
