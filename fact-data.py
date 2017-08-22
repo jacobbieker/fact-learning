@@ -46,15 +46,15 @@ Run on vollmond probably, since it takes a long time
 
 log = logging.getLogger("setup_pypet")
 
-df = pd.read_hdf("gamma_precuts.hdf5")
+#df = pd.read_hdf("gamma_precuts.hdf5")
 #print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
-mc_df = read_h5py("gamma_test.hdf5", key='events')
-print(list(mc_df))
+#mc_df = read_h5py("gamma_test.hdf5", key='events')
+#print(list(mc_df))
 
 
-def load_gamma_subset(sourcefile, bins={'gamma_energy_prediction': 25, 'conc_core': 15, 'zd_tracking': 3},
-                      theta2_cut=0.0, conf_cut=0.0, num_off_positions=1, analysis_type='classic'):
+def load_gamma_subset(sourcefile,
+                      theta2_cut=0.0, conf_cut=0.9, num_off_positions=1, analysis_type='classic'):
     events = read_h5py(sourcefile, key='events')
 
     selection_columns = ['theta_deg', 'gamma_prediction', 'zd_tracking', 'conc_core']
@@ -71,7 +71,7 @@ def load_gamma_subset(sourcefile, bins={'gamma_energy_prediction': 25, 'conc_cor
             prediction_threshold=conf_cut,
             on_prediction_key='gamma_prediction',
             off_prediction_keys=bg_prediction_columns)
-        on_mc = mc_df.query('gamma_prediction >= {}'.format(conf_cut))
+        on_mc = events.query('gamma_prediction >= {}'.format(conf_cut))
     elif analysis_type == 'classic':
         log.info('\tSelection events for source independent analysis')
         log.info("\t\tgamma_pred_cut={0:.2f}".format(conf_cut))
@@ -81,7 +81,7 @@ def load_gamma_subset(sourcefile, bins={'gamma_energy_prediction': 25, 'conc_cor
             theta2_cut=theta2_cut,
             theta_key='theta_deg',
             theta_off_keys=theta_off_columns)
-        on_mc = mc_df.query(
+        on_mc = events.query(
             '(theta_deg <= {}) & (gamma_prediction >= {})'.format(
                 theta2_cut, conf_cut))
 
@@ -96,6 +96,13 @@ def load_gamma_subset(sourcefile, bins={'gamma_energy_prediction': 25, 'conc_cor
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
 
+    # 0's are off
+    #with np.errstate(divide='ignore'):
+    on_data.conc_core = np.log10(on_data.conc_core)
+    on_data.gamma_energy_prediction = np.log10(on_data.gamma_energy_prediction)
+    #on_data.conc_core.loc[np.isnan(on_data.conc_core)] = 0.000001
+    #on_data.gamma_energy_prediction.loc[np.isnan(on_data.gamma_energy_prediction)] = 0.000001
+
     print(on_data.shape)
     print(off_data.shape)
     print(mc_data.shape)
@@ -103,9 +110,6 @@ if __name__ == '__main__':
     # Get the "test" vs non test data
     df_test = on_data[10000:]
     df_train = on_data[:10000]
-
-
-    '''
 
     X = df_train.get(['conc_core', 'gamma_energy_prediction']).values
     X_test = df_test.get(['conc_core', 'gamma_energy_prediction']).values
@@ -137,6 +141,6 @@ if __name__ == '__main__':
                                              X,
                                              log_c=False,
                                              cmap='viridis')
+
     fig.savefig('05_fact_example_original_binning_closest.png')
-    '''
 
