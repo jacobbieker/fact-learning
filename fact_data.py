@@ -181,7 +181,7 @@ def get_binning(original_energy_distribution, signal):
     return binnings[0], binnings[1]
 
 
-def get_response_matrix2(original_energy_distribution, signal, bins=[15, 25]):
+def get_response_matrix2(original_energy_distribution, signal, bins=[16, 26]):
     sum_signal_per_chamber = signal
     sum_true_per_chamber = original_energy_distribution
 
@@ -281,9 +281,9 @@ if __name__ == '__main__':
     real_energy = df_test.corsika_evt_header_total_energy
     # Detected energy is, I think, the gamma_energy_prediction
     detected_energy = df_test.gamma_energy_prediction
-    detector_matrix = get_response_matrix2(real_energy, detected_energy)
+    detector_matrix = get_response_matrix2(real_energy, detected_energy, bins=[16,26])
 
-    u, s, v = np.linalg.svd(detector_matrix)
+    u, s, v = np.linalg.svd(detector_matrix, full_matrices=False)
     eigen_vals = np.absolute(s)
     sorting = np.argsort(eigen_vals)[::-1]
     eigen_vals = eigen_vals[sorting]
@@ -291,4 +291,63 @@ if __name__ == '__main__':
     D = np.diag(eigen_vals)
     kappa = max(eigen_vals) / min(eigen_vals)
     print("Kappa:\n", str(kappa))
-    evaluate_unfolding.plot_eigenvalues(eigen_vals)
+    #evaluate_unfolding.plot_eigenvalues(eigen_vals)
+
+    # Try plotting like the V. Blobel Paper
+
+    binning_f = np.linspace(min(real_energy) - 1e-3, max(real_energy) + 1e-3, detector_matrix.shape[1]+1)
+    binning_g = np.linspace(min(detected_energy) - 1e-3, max(detected_energy) + 1e-3, detector_matrix.shape[0]+1)
+
+    binned_g = np.digitize(detected_energy, binning_g)
+    binned_f = np.digitize(real_energy, binning_f)
+
+    #binning_g, binning_f = get_binning(binned_f, binned_g)
+
+    binned_signal = np.histogram(binned_g, bins=binning_g)[0]
+    binned_true = np.histogram(binned_f, bins=binning_f)[0]
+
+    print(binned_signal.shape)
+
+    d = np.dot(u.T, binned_signal)
+
+    #evaluate_unfolding.plot_svd_parts(s, d)
+
+    model = ff.model.BasicLinearModel()
+    model.initialize(g=binned_g,
+                     f=binned_f)
+    #plt.clf()
+    #plt.imshow(model.A)
+    #plt.savefig('02_matrix_A.png')
+    print('\nNormalized Matrix saved as: 02_matrix_A.png')
+
+    vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
+    print(vec_f)
+    svd = ff.solution.SVDSolution()
+    print('\n===========================\nResults for each Bin: Unfolded/True')
+
+    print('\nSVD Solution for diffrent number of kept sigular values:')
+    for i in range(1, detector_matrix.shape[1]):
+        vec_f_est, V_f_est = svd.run(vec_g=vec_g,
+                                     model=model,
+                                     keep_n_sig_values=i)
+        #print("Shape of estimate, min, max: " + str(V_f_est.shape) + " " + str(min(V_f_est.all())) + " " + str(max(V_f_est.all())))
+        str_0 = '{} singular values:'.format(str(i).zfill(2))
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
+        max_error = []
+        for element in V_f_est:
+            max_error.append(max(element))
+        x_steps = np.linspace(0, detector_matrix.shape[1]+1, detector_matrix.shape[1])
+        print(x_steps.shape)
+        print(vec_f_est.shape)
+        print(len(max_error))
+        plt.clf()
+        plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".")
+        plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], normed=False)
+        plt.savefig("output/" + str_0 + "_self.png")
+
+
+
+

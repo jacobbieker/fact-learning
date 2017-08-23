@@ -151,7 +151,7 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     eigen_vals = eigen_vals[sorting]
     D = np.diag(eigen_vals)
 
-    sum_signal_per_chamber = np.sum(signal, axis=1)  # The x value
+    sum_signal_per_chamber = signal  # The x value
     y_vector = np.histogram(sum_signal_per_chamber, bins=U.shape[0])
     x_vector_true = np.histogram(true_energy, bins=U.shape[0])
     c = np.dot(U.T, y_vector[0])
@@ -176,7 +176,7 @@ def obtain_coefficients(signal, true_energy, eigen_values, eigen_vectors, cutoff
     return b, b_j, c
 
 
-def eigenvalue_cutoff(signal, true_energy, detector_matrix, unfolding_error, cutoff=None):
+def eigenvalue_cutoff(signal, true_energy, detector_matrix, cutoff=None):
     """
     Remove the lower eigenvalues that fall below the unfolding error, to smooth out the result
     :param signal: The signal from the detector

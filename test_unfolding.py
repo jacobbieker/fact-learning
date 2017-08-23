@@ -232,7 +232,7 @@ def test_eigenvalue_cutoff_response_matrix_unfolding(random_state=None, cutoff=5
                         random_state=random_state)
     signal, true_hits, energies_return, detector_matrix = detector.simulate(
         energies)
-    eigenvalue_cutoff_results = eigenvalue_cutoff(signal, energies, detector_matrix, 0.0, cutoff=cutoff)
+    eigenvalue_cutoff_results = eigenvalue_cutoff(signal, energies, detector_matrix, cutoff=cutoff)
     eigenvalues, eigenvectors = eigenvalue_cutoff_results[0], eigenvalue_cutoff_results[1]
 
     true, folded, measured = obtain_coefficients(signal, energies, eigenvalues, eigenvectors, cutoff=cutoff)
