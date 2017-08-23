@@ -183,19 +183,9 @@ def get_binning(original_energy_distribution, signal):
     return binnings[0], binnings[1]
 
 
-def get_response_matrix2(original_energy_distribution, signal, bins=[16, 26]):
-    sum_signal_per_chamber = signal
-    sum_true_per_chamber = original_energy_distribution
+def get_response_matrix2(original_energy_distribution, signal, binning_g, binning_f):
 
-    binning_f = np.linspace(min(sum_true_per_chamber) - 1e-3, max(sum_true_per_chamber) + 1e-3, bins[0])
-    binning_g = np.linspace(min(sum_signal_per_chamber) - 1e-3, max(sum_signal_per_chamber) + 1e-3, bins[1])
-
-    binned_g = np.digitize(sum_signal_per_chamber, binning_g)
-    binned_f = np.digitize(sum_true_per_chamber, binning_f)
-
-    binning_g, binning_f = get_binning(binned_f, binned_g)
-
-    response_matrix = np.histogram2d(binned_g, binned_f, bins=(binning_g, binning_f))[0]
+    response_matrix = np.histogram2d(signal, original_energy_distribution, bins=(binning_g, binning_f))[0]
     normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
     response_matrix = np.dot(response_matrix, normalizer)
 
@@ -205,6 +195,17 @@ def get_response_matrix2(original_energy_distribution, signal, bins=[16, 26]):
 
     return response_matrix
 
+
+def get_eigenvalues_and_condition(detector_matrix, full_matrix=False):
+    u, s, v = np.linalg.svd(detector_matrix, full_matrices=full_matrix)
+    eigen_vals = np.absolute(s)
+    sorting = np.argsort(eigen_vals)[::-1]
+    eigen_vals = eigen_vals[sorting]
+    # U = eigen_vecs
+    D = np.diag(eigen_vals)
+    kappa = max(eigen_vals) / min(eigen_vals)
+    print("Kappa:\n", str(kappa))
+    return eigen_vals, D, kappa
 
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
@@ -219,6 +220,9 @@ if __name__ == '__main__':
     # Get the "test" vs non test data
     df_test = on_data[10000:]
     df_train = on_data[:10000]
+
+    real_bins=16
+    signal_bins=26
 
     tree_obs = ["size",
                 "width",
@@ -266,36 +270,19 @@ if __name__ == '__main__':
     real_energy = df_test.corsika_evt_header_total_energy
     # Detected energy is, I think, the gamma_energy_prediction
     detected_energy = df_test.gamma_energy_prediction
-    detector_matrix = get_response_matrix2(real_energy, detected_energy, bins=[16,26])
-
-    u, s, v = np.linalg.svd(detector_matrix, full_matrices=False)
-    eigen_vals = np.absolute(s)
-    sorting = np.argsort(eigen_vals)[::-1]
-    eigen_vals = eigen_vals[sorting]
-    # U = eigen_vecs
-    D = np.diag(eigen_vals)
-    kappa = max(eigen_vals) / min(eigen_vals)
-    print("Kappa:\n", str(kappa))
-    #evaluate_unfolding.plot_eigenvalues(eigen_vals)
 
     # Try plotting like the V. Blobel Paper
 
-    binning_f = np.linspace(min(real_energy) - 1e-3, max(real_energy) + 1e-3, detector_matrix.shape[1]+1)
-    binning_g = np.linspace(min(detected_energy) - 1e-3, max(detected_energy) + 1e-3, detector_matrix.shape[0]+1)
+    binning_f = np.linspace(min(real_energy) - 1e-3, max(real_energy) + 1e-3, real_bins)
+    binning_g = np.linspace(min(detected_energy) - 1e-3, max(detected_energy) + 1e-3, signal_bins)
 
     binned_g = np.digitize(detected_energy, binning_g)
     binned_f = np.digitize(real_energy, binning_f)
 
-    #binning_g, binning_f = get_binning(binned_f, binned_g)
-
     binned_signal = np.histogram(binned_g, bins=binning_g)[0]
     binned_true = np.histogram(binned_f, bins=binning_f)[0]
 
-    print(binned_signal.shape)
-
-    d = np.dot(u.T, binned_signal)
-
-    #evaluate_unfolding.plot_svd_parts(s, d)
+    detector_matrix = get_response_matrix2(real_energy, detected_energy, binning_g, binning_f)
 
     model = ff.model.BasicLinearModel()
     model.initialize(g=binned_g,
@@ -306,15 +293,37 @@ if __name__ == '__main__':
     print('\nNormalized Matrix saved as: 02_matrix_A.png')
 
     vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
+
+    # Get the V. Blobel plot for the measured distribution
+    u, s, v = np.linalg.svd(detector_matrix, full_matrices=False)
+    measured_coeffs = abs(np.dot(u.T, vec_g))
+    x_steps_one = np.linspace(0,len(measured_coeffs), len(measured_coeffs))
+    plt.step(x_steps_one, measured_coeffs, where="mid")
+    plt.savefig("output/vec_g_dot_u.T_measured.png")
+    plt.clf()
+
+    true_coeffs = abs(np.dot(vec_f, u.T))
+    x_steps_one = np.linspace(0,len(true_coeffs), len(true_coeffs))
+    plt.step(x_steps_one, true_coeffs, where="mid")
+    plt.savefig("output/vec_f_dot_u.T_measured.png")
+    plt.clf()
+
+
+
+
+
     print(vec_f)
     svd = ff.solution.SVDSolution()
     print('\n===========================\nResults for each Bin: Unfolded/True')
 
-    print('\nSVD Solution for diffrent number of kept sigular values:')
+    print('\nSVD Solution for diffrent number of kept singular values:')
     for i in range(1, detector_matrix.shape[1]):
         vec_f_est, V_f_est = svd.run(vec_g=vec_g,
                                      model=model,
                                      keep_n_sig_values=i)
+        #svd.evaluate_singular_values(vec_g=vec_g,
+        #                             model=model)
+        #plt.show()
         #print("Shape of estimate, min, max: " + str(V_f_est.shape) + " " + str(min(V_f_est.all())) + " " + str(max(V_f_est.all())))
         str_0 = '{} singular values:'.format(str(i).zfill(2))
         str_1 = ''
@@ -346,6 +355,16 @@ if __name__ == '__main__':
             vec_f_est_tree, V_f_est_tree = svd.run(vec_g=counts_per_bin,
                                          model=model,
                                          keep_n_sig_values=i)
+            unfolded_coeffs = abs(np.dot(vec_f_est_tree, u.T))
+            x_steps_one = np.linspace(0,len(unfolded_coeffs), len(unfolded_coeffs))
+            plt.step(x_steps_one, unfolded_coeffs, where="mid")
+            plt.savefig("output/singular_vals_" + str(i) + "_vec_f_est_tree_dot_u.T_measured.png")
+            plt.clf()
+            plt.step(x_steps_one, unfolded_coeffs, where="mid", label="Unfolded Coeffs")
+            plt.step(x_steps_one, true_coeffs, where="mid", label="True Coeffs")
+            plt.legend(loc="best")
+            plt.savefig("output/sin_vals_" + str(i) + "_true_and_unfolded_coeffs.png")
+            plt.clf()
             #print("Shape of estimate, min, max: " + str(V_f_est.shape) + " " + str(min(V_f_est.all())) + " " + str(max(V_f_est.all())))
             str_0 = '{} singular values:'.format(str(i).zfill(2))
             str_1 = ''
@@ -368,14 +387,16 @@ if __name__ == '__main__':
             # Plot both
             plt.clf()
             plt.title("Tree Learn Binning vs Equidistant Binning")
-            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".")
-            plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".")
+            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".", alpha=0.4)
+            plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".", alpha=0.4)
             plt.hist(x_steps, weights=vec_f_est_tree, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding Tree bin counts")
             plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
             plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
             plt.yscale('log')
             plt.legend(loc='best')
             plt.savefig("output/" + str_0 + "_self_tree_bin_vec_g_compare.png")
+
+            get_eigenvalues_and_condition(detector_matrix, full_matrix=True)
 
 
 

@@ -147,7 +147,8 @@ def plot_error_stats(mean, std):
     plt.show()
 
 
-def plot_svd_parts(d, s):
+def plot_svd_parts(s, u):
+    d = np.dot(u.T, s)
     d = np.abs(d)
     binning = np.linspace(0, d.shape[0], d.shape[0] + 1)
     bin_center = (binning[:-1] + binning[1:]) / 2
