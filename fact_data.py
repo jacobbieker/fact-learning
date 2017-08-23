@@ -45,6 +45,18 @@ Use SVD unfolding first since it is fast to run
 Run on vollmond probably, since it takes a long time
 
 
+Create a thing to enable giving data and running multiple tests with different binnings and unfolding ways at once
+
+Create plot of the singular value / max(singular value) for the different binnings or SVD unfoldings....And get condition
+
+Add support for using the a vector  to get unfolded back to true distribution (f * a elementwise) in the regularization
+
+Use 20 percent for training tree, 80 percent for detector matrix
+
+For the tree, use lots of bins, set a min number of elements per leaf, not a set number of bins for better results
+
+Error for SVD is covariance matrix, just use diagonal for now for the errors [X]
+
 '''
 
 log = logging.getLogger("setup_pypet")
@@ -121,7 +133,7 @@ def decision_tree(dataset_test, dataset_train, tree_obs, max_bins=None, random_s
     if max_bins is None:
         tree_binning = discretization.TreeBinningSklearn(random_state=random_state)
     else:
-        tree_binning = discretization.TreeBinningSklearn(random_state=random_state, max_leaf_nodes=max_bins)
+        tree_binning = discretization.TreeBinningSklearn(random_state=random_state, min_samples_leaf=max_bins)
     tree_binning.fit(X_tree_test, binned_E_test)
 
     print(tree_binning.tree.tree_.feature)
@@ -221,6 +233,10 @@ if __name__ == '__main__':
     df_test = on_data[10000:]
     df_train = on_data[:10000]
 
+    # Split into 20 /80 mix for tree/detector matrix sets
+    df_detector = df_train[int(0.8*len(df_train)):]
+    df_tree = df_train[:int(0.8*len(df_train))]
+
     real_bins=16
     signal_bins=26
 
@@ -243,7 +259,7 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
 
-    tree_repr, digitized_tree = decision_tree(df_test, df_train, tree_obs=tree_obs, max_bins=25)
+    tree_repr, digitized_tree = decision_tree(df_tree, df_tree, tree_obs=tree_obs, max_bins=1000)
     closest_bins, X_vals = classic_tree(df_test, df_train)
 
     binned_closest = closest_bins.histogram(X_vals)
@@ -267,6 +283,25 @@ if __name__ == '__main__':
                                                  title="Counts from TreeBinningSklrean")
 
     # Get the eigenvalues/vectors of the results to compare vs the noise
+    real_energy = df_detector.corsika_evt_header_total_energy
+    # Detected energy is, I think, the gamma_energy_prediction
+    detected_energy = df_detector.gamma_energy_prediction
+
+    # Try plotting like the V. Blobel Paper
+
+    binning_f = np.linspace(min(real_energy) - 1e-3, max(real_energy) + 1e-3, real_bins)
+    binning_g = np.linspace(min(detected_energy) - 1e-3, max(detected_energy) + 1e-3, signal_bins)
+
+    binned_g = np.digitize(detected_energy, binning_g)
+    binned_f = np.digitize(real_energy, binning_f)
+
+    binned_signal = np.histogram(binned_g, bins=binning_g)[0]
+    binned_true = np.histogram(binned_f, bins=binning_f)[0]
+
+    # Gets the detector response matrix based on the 80 percent of the training data
+    detector_matrix = get_response_matrix2(real_energy, detected_energy, binning_g, binning_f)
+
+    # Get the eigenvalues/vectors of the results to compare vs the noise
     real_energy = df_test.corsika_evt_header_total_energy
     # Detected energy is, I think, the gamma_energy_prediction
     detected_energy = df_test.gamma_energy_prediction
@@ -281,8 +316,6 @@ if __name__ == '__main__':
 
     binned_signal = np.histogram(binned_g, bins=binning_g)[0]
     binned_true = np.histogram(binned_f, bins=binning_f)[0]
-
-    detector_matrix = get_response_matrix2(real_energy, detected_energy, binning_g, binning_f)
 
     model = ff.model.BasicLinearModel()
     model.initialize(g=binned_g,
@@ -311,7 +344,6 @@ if __name__ == '__main__':
 
 
 
-
     print(vec_f)
     svd = ff.solution.SVDSolution()
     print('\n===========================\nResults for each Bin: Unfolded/True')
@@ -330,14 +362,11 @@ if __name__ == '__main__':
         for f_i_est, f_i in zip(vec_f_est, vec_f):
             str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
         print('{}\t{}'.format(str_0, str_1))
-        max_error = []
-        for element in V_f_est:
-            max_error.append(np.mean(element))
         x_steps = np.linspace(0, detector_matrix.shape[1]+1, detector_matrix.shape[1])
         # Plot with Equidistant Binning
         plt.clf()
         plt.title("Equidistant Binning")
-        plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".")
+        plt.errorbar(x=x_steps, y=vec_f_est, yerr=np.diag(V_f_est), fmt=".")
         plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
         plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
         plt.yscale('log')
@@ -347,13 +376,13 @@ if __name__ == '__main__':
 
         # Plot with Tree Binning
         model = ff.model.BasicLinearModel()
-        model.initialize(g=digitized_tree,
+        model.initialize(g=binned_g,
                          f=binned_f)
         print('\n===========================\nResults for each Bin: Unfolded/True')
-        vec_g, vec_f = model.generate_vectors(digitized_tree, binned_f)
+        vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
         print('\nSVD Solution for diffrent number of kept sigular values:')
         for j in range(1, detector_matrix.shape[1]):
-            vec_f_est_tree, V_f_est_tree = svd.run(vec_g=counts_per_bin,
+            vec_f_est_tree, V_f_est_tree = svd.run(vec_g=vec_g,
                                          model=model,
                                          keep_n_sig_values=j)
             unfolded_coeffs = abs(np.dot(vec_f_est_tree, u.T))
@@ -386,13 +415,10 @@ if __name__ == '__main__':
             for f_i_est, f_i in zip(vec_f_est_tree, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
             print('{}\t{}'.format(str_0, str_1))
-            max_error = []
-            for element in V_f_est_tree:
-                max_error.append(np.mean(element))
             x_steps = np.linspace(0, detector_matrix.shape[1]+1, detector_matrix.shape[1])
             plt.clf()
             plt.title("Tree Learn Binning")
-            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".")
+            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=np.diag(V_f_est_tree), fmt=".")
             plt.hist(x_steps, weights=vec_f_est_tree, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
             plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
             plt.yscale('log')
@@ -402,8 +428,8 @@ if __name__ == '__main__':
             # Plot both
             plt.clf()
             plt.title("Tree Learn Binning vs Equidistant Binning")
-            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".", alpha=0.4)
-            plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".", alpha=0.4)
+            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=np.diag(V_f_est_tree), fmt=".", alpha=0.4)
+            plt.errorbar(x=x_steps, y=vec_f_est, yerr=np.diag(V_f_est), fmt=".", alpha=0.4)
             plt.hist(x_steps, weights=vec_f_est_tree, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding Tree bin counts")
             plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
             plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')

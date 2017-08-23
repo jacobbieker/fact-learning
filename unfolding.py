@@ -24,7 +24,7 @@ def bin_data(signal, true_energy, detector_response_matrix):
     return signal, true_energy
 
 
-def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True, negative_log=True):
+def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True, negative_log=True, a=None):
     """
     Calculate the log likelihood and returns -inf or inf if the input involves a negative number
     :param f:
@@ -63,7 +63,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
         before_regularize.append(part_one - part_two + part_three)
     # Prior is the 1/2 * tau * f(x).T * C' * f(x)
     if regularized:
-        prior = (0.5 * tau * np.dot(np.dot(np.log(f.T + 1), np.dot(C.T, C)), np.log(f + 1)))
+        prior = (0.5 * tau * np.dot(np.dot(np.log10(f.T * a + 1), np.dot(C.T, C)), np.log10(f * a + 1)))
     else:
         prior = 0
     likelihood_log = np.sum((np.asarray(before_regularize)) + prior)  # + np.diag(prior)
@@ -72,7 +72,8 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
     else:
         return likelihood_log * -1
 
-def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
+
+def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularized=True, a=None):
     # Have to calculate dS/df_k = h_k = below? K is an index, so gradient is an array with k fixed per run through i
     inside_gradient = np.zeros_like(detector_matrix)
     h = np.zeros(shape=f.shape, dtype=np.float64)
@@ -87,7 +88,7 @@ def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularize
             possion_part += part_one - part_two / part_three
         # I think this adds it too many times
         if regularized:
-            prior = tau * np.sum(np.dot(C_prime[:, k], np.log(f + 1)))
+            prior = tau * np.sum(np.dot(C_prime[:, k], np.log10(f * a + 1)))
         else:
             prior = 0
         # print("Compare prior - np sum vs way in other one---------------------------------------------------------")
