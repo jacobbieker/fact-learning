@@ -297,8 +297,8 @@ if __name__ == '__main__':
     # Get the V. Blobel plot for the measured distribution
     u, s, v = np.linalg.svd(detector_matrix, full_matrices=False)
     measured_coeffs = abs(np.dot(u.T, vec_g))
-    x_steps_one = np.linspace(0,len(measured_coeffs), len(measured_coeffs))
-    plt.step(x_steps_one, measured_coeffs, where="mid")
+    x_steps_two = np.linspace(0,len(measured_coeffs), len(measured_coeffs))
+    plt.step(x_steps_two, measured_coeffs, where="mid")
     plt.savefig("output/vec_g_dot_u.T_measured.png")
     plt.clf()
 
@@ -343,6 +343,7 @@ if __name__ == '__main__':
         plt.yscale('log')
         plt.legend(loc='best')
         plt.savefig("output/" + str_0 + "_self_vec_g.png")
+        plt.clf()
 
         # Plot with Tree Binning
         model = ff.model.BasicLinearModel()
@@ -351,12 +352,13 @@ if __name__ == '__main__':
         print('\n===========================\nResults for each Bin: Unfolded/True')
         vec_g, vec_f = model.generate_vectors(digitized_tree, binned_f)
         print('\nSVD Solution for diffrent number of kept sigular values:')
-        for i in range(1, detector_matrix.shape[1]):
+        for j in range(1, detector_matrix.shape[1]):
             vec_f_est_tree, V_f_est_tree = svd.run(vec_g=counts_per_bin,
                                          model=model,
-                                         keep_n_sig_values=i)
+                                         keep_n_sig_values=j)
             unfolded_coeffs = abs(np.dot(vec_f_est_tree, u.T))
             x_steps_one = np.linspace(0,len(unfolded_coeffs), len(unfolded_coeffs))
+            unfolded_not_tree_coeffs = abs(np.dot(vec_f_est, u.T))
             plt.step(x_steps_one, unfolded_coeffs, where="mid")
             plt.savefig("output/singular_vals_" + str(i) + "_vec_f_est_tree_dot_u.T_measured.png")
             plt.clf()
@@ -365,8 +367,21 @@ if __name__ == '__main__':
             plt.legend(loc="best")
             plt.savefig("output/sin_vals_" + str(i) + "_true_and_unfolded_coeffs.png")
             plt.clf()
+            plt.step(x_steps_one, unfolded_coeffs, where="mid", label="Unfolded Coeffs")
+            plt.step(x_steps_one, true_coeffs, where="mid", label="True Coeffs")
+            plt.step(x_steps_two, measured_coeffs, where="mid", label="Measured Coeffs")
+            plt.legend(loc="best")
+            plt.savefig("output/sin_vals_" + str(i) + "_true_measured_unfolded_coeffs.png")
+            plt.clf()
+            plt.step(x_steps_one, unfolded_coeffs, where="mid", label="Unfolded Coeffs")
+            plt.step(x_steps_one, true_coeffs, where="mid", label="True Coeffs")
+            plt.step(x_steps_two, measured_coeffs, where="mid", label="Measured Coeffs")
+            plt.step(x_steps_one, unfolded_not_tree_coeffs, where="mid", label="Classic Binning Unfolded Coeffs")
+            plt.legend(loc="best")
+            plt.savefig("output/sin_vals_" + str(i) + "_true_measured_both_unfolded_coeffs.png")
+            plt.clf()
             #print("Shape of estimate, min, max: " + str(V_f_est.shape) + " " + str(min(V_f_est.all())) + " " + str(max(V_f_est.all())))
-            str_0 = '{} singular values:'.format(str(i).zfill(2))
+            str_0 = '{} singular values:'.format(str(j).zfill(2))
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est_tree, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
@@ -396,7 +411,7 @@ if __name__ == '__main__':
             plt.legend(loc='best')
             plt.savefig("output/" + str_0 + "_self_tree_bin_vec_g_compare.png")
 
-            get_eigenvalues_and_condition(detector_matrix, full_matrix=True)
+        get_eigenvalues_and_condition(detector_matrix, full_matrix=True)
 
 
 
