@@ -110,7 +110,7 @@ def convert_to_log(dataset):
     return dataset
 
 
-def decision_tree(dataset_test, dataset_train, tree_obs, random_state=None):
+def decision_tree(dataset_test, dataset_train, tree_obs, max_bins=None, random_state=None):
     X_tree = dataset_train.get(tree_obs).values
     X_tree_test = dataset_test.get(tree_obs).values
     binning_E = np.linspace(2.4, 4.2, 10)
@@ -118,8 +118,10 @@ def decision_tree(dataset_test, dataset_train, tree_obs, random_state=None):
                            binning_E)
     binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
                                 binning_E)
-
-    tree_binning = discretization.TreeBinningSklearn(random_state=random_state)
+    if max_bins is None:
+        tree_binning = discretization.TreeBinningSklearn(random_state=random_state)
+    else:
+        tree_binning = discretization.TreeBinningSklearn(random_state=random_state, max_leaf_nodes=max_bins)
     tree_binning.fit(X_tree_test, binned_E_test)
 
     print(tree_binning.tree.tree_.feature)
@@ -204,23 +206,6 @@ def get_response_matrix2(original_energy_distribution, signal, bins=[16, 26]):
     return response_matrix
 
 
-def get_detector_matrix(dataset, bin_true=10, bin_detected=20, plot=False):
-    '''
-    Try to get the 'detector matrix' from the dataset (although is it really the response matrix?)
-    :param dataset:
-    :param plot:
-    :return:
-    '''
-
-    # Real energy is the corsika evt header total energy
-    real_energy = dataset.corsika_evt_header_total_energy
-    # Detected energy is, I think, the gamma_energy_prediction
-    detected_energy = dataset.gamma_energy_prediction
-
-    # Now make the matrix?
-    np.histogram2d(real_energy, detected_energy, bins=[bin_true, bin_detected])
-
-
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
 
@@ -254,7 +239,7 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
 
-    tree_repr, digitized_tree = decision_tree(df_test, df_train, tree_obs=tree_obs)
+    tree_repr, digitized_tree = decision_tree(df_test, df_train, tree_obs=tree_obs, max_bins=25)
     closest_bins, X_vals = classic_tree(df_test, df_train)
 
     binned_closest = closest_bins.histogram(X_vals)
@@ -338,15 +323,62 @@ if __name__ == '__main__':
         print('{}\t{}'.format(str_0, str_1))
         max_error = []
         for element in V_f_est:
-            max_error.append(max(element))
+            max_error.append(np.mean(element))
         x_steps = np.linspace(0, detector_matrix.shape[1]+1, detector_matrix.shape[1])
-        print(x_steps.shape)
-        print(vec_f_est.shape)
-        print(len(max_error))
+        # Plot with Equidistant Binning
         plt.clf()
+        plt.title("Equidistant Binning")
         plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".")
-        plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], normed=False)
-        plt.savefig("output/" + str_0 + "_self.png")
+        plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
+        plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
+        plt.yscale('log')
+        plt.legend(loc='best')
+        plt.savefig("output/" + str_0 + "_self_vec_g.png")
+
+        # Plot with Tree Binning
+        model = ff.model.BasicLinearModel()
+        model.initialize(g=digitized_tree,
+                         f=binned_f)
+        print('\n===========================\nResults for each Bin: Unfolded/True')
+        vec_g, vec_f = model.generate_vectors(digitized_tree, binned_f)
+        print('\nSVD Solution for diffrent number of kept sigular values:')
+        for i in range(1, detector_matrix.shape[1]):
+            vec_f_est_tree, V_f_est_tree = svd.run(vec_g=counts_per_bin,
+                                         model=model,
+                                         keep_n_sig_values=i)
+            #print("Shape of estimate, min, max: " + str(V_f_est.shape) + " " + str(min(V_f_est.all())) + " " + str(max(V_f_est.all())))
+            str_0 = '{} singular values:'.format(str(i).zfill(2))
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_tree, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
+            max_error = []
+            for element in V_f_est_tree:
+                max_error.append(np.mean(element))
+            x_steps = np.linspace(0, detector_matrix.shape[1]+1, detector_matrix.shape[1])
+            plt.clf()
+            plt.title("Tree Learn Binning")
+            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".")
+            plt.hist(x_steps, weights=vec_f_est_tree, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
+            plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
+            plt.yscale('log')
+            plt.legend(loc='best')
+            plt.savefig("output/" + str_0 + "_self_tree_bin.png")
+
+            # Plot both
+            plt.clf()
+            plt.title("Tree Learn Binning vs Equidistant Binning")
+            plt.errorbar(x=x_steps, y=vec_f_est_tree, yerr=max_error, fmt=".")
+            plt.errorbar(x=x_steps, y=vec_f_est, yerr=max_error, fmt=".")
+            plt.hist(x_steps, weights=vec_f_est_tree, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding Tree bin counts")
+            plt.hist(x_steps, weights=vec_f_est, bins=detector_matrix.shape[1], histtype='step', normed=False, label="SVD Unfolding bin counts")
+            plt.hist(x_steps, weights=vec_f, bins=detector_matrix.shape[1], histtype='step', normed=False, label='True Distribution')
+            plt.yscale('log')
+            plt.legend(loc='best')
+            plt.savefig("output/" + str_0 + "_self_tree_bin_vec_g_compare.png")
+
+
+
 
 
 
