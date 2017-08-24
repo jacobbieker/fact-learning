@@ -136,6 +136,8 @@ def decision_tree(dataset_test, dataset_train, tree_obs, max_bins=None, random_s
         tree_binning = discretization.TreeBinningSklearn(random_state=random_state, min_samples_leaf=max_bins)
     tree_binning.fit(X_tree_test, binned_E_test)
 
+    print("Number of bins: " + str(tree_binning.n_bins))
+
     print(tree_binning.tree.tree_.feature)
     print(len(tree_binning.tree.tree_.feature))
 
@@ -285,7 +287,7 @@ if __name__ == '__main__':
     df_detector = df_train[int(0.8*len(df_train)):]
     df_tree = df_train[:int(0.8*len(df_train))]
 
-    real_bins=16
+    real_bins=21
     signal_bins=26
 
     tree_obs = ["size",
@@ -307,7 +309,7 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
     tree_dataset = (df_tree.corsika_evt_header_total_energy, df_tree.gamma_energy_prediction)
-    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, 15, 25)
+    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, real_bins, 25)
     tree_repr, digitized_tree = decision_tree(df_tree, df_tree, tree_obs=tree_obs, max_bins=100)
     counts_per_bin = np.zeros(shape=(len(np.unique(digitized_tree))))
     for element in digitized_tree:
@@ -323,9 +325,18 @@ if __name__ == '__main__':
         real_energy_binned[element] += 1
     real_energy_binned = real_energy_binned[1:]
 
-    closest_binned_array = np.outer(real_energy_binned, closest_binned)
-    lowest_binned_array = np.outer(real_energy_binned, lowest_binned)
-    tree_binned_array = np.outer(real_energy_binned, counts_per_bin)
+    closest_binned_array = np.outer(closest_binned, real_energy_binned)
+    lowest_binned_array = np.outer(lowest_binned, real_energy_binned)
+    tree_binned_array = np.outer(counts_per_bin, real_energy_binned)
+
+    # See if this normalization helps at all...
+    def normalizer(response_matrix):
+        normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
+        response_matrix = np.dot(response_matrix, normalizer)
+        return response_matrix
+    closest_binned_array = normalizer(closest_binned_array)
+    lowest_binned_array = normalizer(lowest_binned_array)
+    tree_binned_array = normalizer(tree_binned_array)
 
     u, c_s, v = np.linalg.svd(closest_binned_array)
     u, l_s, v = np.linalg.svd(lowest_binned_array)
@@ -341,10 +352,12 @@ if __name__ == '__main__':
     step_function_x_l = np.linspace(0, l_s.shape[0], l_s.shape[0])
     step_function_x_t = np.linspace(0, tree_s.shape[0], tree_s.shape[0])
 
-    plt.step(step_function_x_c, c_s, where="mid", label="Closest Binning")
-    plt.step(step_function_x_l, l_s, where="mid", label="Lowest Binning")
-    plt.step(step_function_x_t, tree_s, where="mid", label="Tree Binning")
+    plt.step(step_function_x_c, c_s, where="mid", label="Closest Binning (k: " + str(1.0/min(c_s)))
+    plt.step(step_function_x_l, l_s, where="mid", label="Lowest Binning (k: " + str(1.0/min(l_s)))
+    plt.step(step_function_x_t, tree_s, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_s)))
+    plt.xlabel("Singular Value Number")
     plt.legend(loc="best")
+    plt.ylim(0, 1.5e-16)
     plt.show()
 
     closest_binning_two = np.linspace(0, closest_binned.shape[0]+1, closest_binned.shape[0])
