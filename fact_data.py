@@ -216,18 +216,27 @@ def try_different_classic_binning(dataset, bins_true=15, bins_measured=25, simil
                                    mode='lowest')
     binned_lowest = lowest.histogram(dataset)
     if similar_test:
+        y_mean = 1.5
+        y_clf = np.zeros(dataset.shape[0])
+        is_pos = dataset[: ,0] * dataset[:, 1] > 0
+        y_clf[is_pos] = np.random.normal(loc=y_mean, size=np.sum(is_pos))
+        y_clf[~is_pos] = np.random.normal(loc=-y_mean, size=np.sum(~is_pos))
+        y_clf = np.array(y_clf >= 0, dtype=int)
+        y_means = np.sqrt(dataset[:, 0]**2 + dataset[:, 0]**2)
+        y_reg = np.random.normal(loc=y_means,
+                                 scale=0.3)
         similar_clf = classic_binning.merge(dataset,
                                             min_samples=threshold,
                                             max_bins=None,
                                             mode='similar',
-                                            y=0)
+                                            y=y_clf)
         binned_similar_clf = similar_clf.histogram(dataset)
 
         similar_reg = classic_binning.merge(dataset,
                                             min_samples=threshold,
                                             max_bins=None,
                                             mode='similar',
-                                            y=0)
+                                            y=y_reg)
         binned_similar_reg = similar_reg.histogram(dataset)
 
     if similar_test:
@@ -309,7 +318,7 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
     tree_dataset = (df_tree.corsika_evt_header_total_energy, df_tree.gamma_energy_prediction)
-    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, real_bins, 25)
+    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, real_bins, 25, similar_test=True)
     tree_repr, digitized_tree = decision_tree(df_tree, df_tree, tree_obs=tree_obs, max_bins=100)
     counts_per_bin = np.zeros(shape=(len(np.unique(digitized_tree))))
     for element in digitized_tree:
@@ -325,9 +334,36 @@ if __name__ == '__main__':
         real_energy_binned[element] += 1
     real_energy_binned = real_energy_binned[1:]
 
+    classic_binning = discretization.ClassicBinning(
+        bins = [real_bins, signal_bins],
+    )
+
+    raw_points = np.asarray([df_tree.corsika_evt_header_total_energy, df_tree.gamma_energy_prediction])
+    classic_binning.fit(raw_points)
+
+    classic_binned = classic_binning.histogram(raw_points)
+    classic_binned_array = np.outer(classic_binned, real_energy_binned)
+
+    if False:
+        threshold = 100
+
+        closest_binned = classic_binning.merge(raw_points,
+                                                min_samples=threshold,
+                                                max_bins=None,
+                                                mode='closest')
+
+        closest_binned = closest_binned.histogram(raw_points)
+        lowest_binned = classic_binning.merge(raw_points,
+                                               min_samples=threshold,
+                                               max_bins=None,
+                                               mode='lowest')
+        lowest_binned = lowest_binned.histogram(raw_points)
+
     closest_binned_array = np.outer(closest_binned, real_energy_binned)
     lowest_binned_array = np.outer(lowest_binned, real_energy_binned)
     tree_binned_array = np.outer(counts_per_bin, real_energy_binned)
+    similar_reg_binned_array = np.outer(closest_binning, real_energy_binned)
+    similar_binned_array = np.outer(lowest_binning, real_energy_binned)
 
     # See if this normalization helps at all...
     def normalizer(response_matrix):
@@ -337,24 +373,39 @@ if __name__ == '__main__':
     closest_binned_array = normalizer(closest_binned_array)
     lowest_binned_array = normalizer(lowest_binned_array)
     tree_binned_array = normalizer(tree_binned_array)
+    classic_binning_array = normalizer(classic_binned_array)
+    similar_reg_binned_array = normalizer(similar_reg_binned_array)
+    similar_binned_array = normalizer(similar_binned_array)
 
     u, c_s, v = np.linalg.svd(closest_binned_array)
     u, l_s, v = np.linalg.svd(lowest_binned_array)
     u, tree_s, v = np.linalg.svd(tree_binned_array)
+    u, classic_s, v = np.linalg.svd(classic_binned_array)
+    u, s_c, v = np.linalg.svd(similar_reg_binned_array)
+    s, s_l, v = np.linalg.svd(similar_binned_array)
 
     # Do one over max to get condition numbers
     c_s = c_s/max(c_s)
     l_s = l_s/max(l_s)
+    s_c = s_c/max(s_c)
+    s_l = s_l/max(s_l)
     tree_s = tree_s/max(tree_s)
+    classic_s = classic_s/max(classic_s)
 
     # Plot the step function of the numbers
     step_function_x_c = np.linspace(0, c_s.shape[0], c_s.shape[0])
     step_function_x_l = np.linspace(0, l_s.shape[0], l_s.shape[0])
     step_function_x_t = np.linspace(0, tree_s.shape[0], tree_s.shape[0])
+    step_function_x_class = np.linspace(0, classic_s.shape[0], classic_s.shape[0])
+    step_function_x_c_s = np.linspace(0, s_c.shape[0], s_c.shape[0])
+    step_function_x_l_s = np.linspace(0, s_l.shape[0], s_l.shape[0])
 
     plt.step(step_function_x_c, c_s, where="mid", label="Closest Binning (k: " + str(1.0/min(c_s)))
     plt.step(step_function_x_l, l_s, where="mid", label="Lowest Binning (k: " + str(1.0/min(l_s)))
+    plt.step(step_function_x_c_s, s_c, where="mid", label="Similar Reg Binned (k: " + str(1.0/min(s_c)))
+    plt.step(step_function_x_l_s, s_l, where="mid", label="Similar Binned (k: " + str(1.0/min(l_s)))
     plt.step(step_function_x_t, tree_s, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_s)))
+    plt.step(step_function_x_class, classic_s, where="mid", label="Classic Binning (k: " + str(1.0/min(classic_s)))
     plt.xlabel("Singular Value Number")
     plt.legend(loc="best")
     plt.ylim(0, 1.5e-16)
