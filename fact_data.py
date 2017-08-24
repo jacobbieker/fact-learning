@@ -57,6 +57,15 @@ For the tree, use lots of bins, set a min number of elements per leaf, not a set
 
 Error for SVD is covariance matrix, just use diagonal for now for the errors [X]
 
+So use the digitized g and f vectors to create the detector response by zip(vec_f, vec_g): 
+A[i,j] += 1 
+
+or something similar. Almsot right but not quite at the moment. Should have two digistized ones that are the lengths of the input number of particles and then just slot them into the detector matrix. Tree has a thing that can do that, looke at testing.py. 
+
+Have to change linspace in testing since thats for icecube data, same with the energy things
+
+Basically need digitized things to make it work correctly and to build the detector matricies, which is where we get the singular values from.
+
 '''
 
 log = logging.getLogger("setup_pypet")
@@ -318,8 +327,8 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
     tree_dataset = (df_tree.corsika_evt_header_total_energy, df_tree.gamma_energy_prediction)
-    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, real_bins, 25, similar_test=True)
-    tree_repr, digitized_tree = decision_tree(df_tree, df_tree, tree_obs=tree_obs, max_bins=100)
+    closest_binned, lowest_binned, closest_binning, lowest_binning = try_different_classic_binning(df_tree, real_bins, signal_bins, similar_test=True)
+    tree_repr, digitized_tree = decision_tree(df_tree, df_tree, tree_obs=tree_obs, max_bins=500)
     counts_per_bin = np.zeros(shape=(len(np.unique(digitized_tree))))
     for element in digitized_tree:
         counts_per_bin[element] += 1
