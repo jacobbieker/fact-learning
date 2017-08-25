@@ -385,9 +385,11 @@ if __name__ == '__main__':
 
     detected_energy_test = df_test.get("gamma_energy_prediction").values
     real_energy_test = df_test.get("corsika_evt_header_total_energy").values
+
     detected_energy_tree = df_tree.get(tree_obs).values
-    real_energy_tree = df_tree.get(tree_obs).values
-    detected_energy_detector = df_detector.get("gamma_energy_prediction").values
+    real_energy_tree = df_tree.get("corsika_evt_header_total_energy").values
+
+    detected_energy_detector = df_detector.get(tree_obs).values
     real_energy_detector = df_detector.get("corsika_evt_header_total_energy").values
 
     binning_energy = np.linspace(2.3, 4.7, real_bins)
@@ -407,13 +409,13 @@ if __name__ == '__main__':
         max_leaf_nodes=None,
         random_state=1337)
 
-    detected_energy_tree = detected_energy_tree[:, None]
+    #detected_energy_tree = detected_energy_tree[:, None]
     #real_energy_detector = real_energy_detector[:, None]
     #detected_energy_detector = detected_energy_detector[:, None]
 
-    tree_binning.fit(real_energy_detector, binned_E_train)
-
-    binned_g_validate = tree_binning.digitize(real_energy_tree)
+    tree_binning.fit(detected_energy_detector, binned_E_train)
+    #real_energy_detector = real_energy_detector[:,]
+    binned_g_validate = tree_binning.digitize(detected_energy_tree)
 
     tree_binning_model = ff.model.LinearModel()
     tree_binning_model.initialize(
@@ -428,20 +430,86 @@ if __name__ == '__main__':
     classic_binning = ff.binning.ClassicBinning(
         bins = [real_bins, signal_bins],
     )
-    testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
-    classic_binning.initialize(testing_dataset)
-    closest = classic_binning.merge(testing_dataset,
+    #testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
+    classic_binning.initialize(detected_energy_tree)
+
+    digitized_classic = classic_binning.digitize(detected_energy_tree)
+
+    closest = classic_binning.merge(detected_energy_tree,
                                     min_samples=threshold,
                                     max_bins=None,
                                     mode='closest')
-    digitized_closest = closest.digitize(testing_dataset)
+    digitized_closest = closest.digitize(detected_energy_tree)
 
-    lowest = classic_binning.merge(testing_dataset,
+    lowest = classic_binning.merge(detected_energy_tree,
                                    min_samples=threshold,
                                    max_bins=None,
                                    mode='lowest')
-    binned_lowest = lowest.digitize(testing_dataset)
-    print()
+    digitized_lowest = lowest.digitize(detected_energy_tree)
+
+    tree_binning_model.initialize(
+        digitized_obs=digitized_closest,
+        digitized_truth=binned_E_validate
+    )
+    detector_matrix_tree_closest = tree_binning_model.A
+
+    tree_binning_model.initialize(
+        digitized_obs=digitized_lowest,
+        digitized_truth=binned_E_validate
+    )
+    detector_matrix_tree_lowest = tree_binning_model.A
+
+    #assert detector_matrix_tree_closest.shape != detector_matrix_tree_lowest.shape
+
+
+    # now build the detector matrix from the digitized true and detected ones
+
+    detector_matrix_closest = np.zeros(shape=(max(digitized_closest)+1, max(binned_E_validate)+1))
+    detector_matrix_lowest = np.zeros(shape=(max(digitized_lowest)+1, max(binned_E_validate)+1))
+    detector_matrix_classic = np.zeros(shape=(max(digitized_classic)+1, max(binned_E_validate)+1))
+
+    for element in binned_E_validate:
+        # Closest one
+        for another_element in digitized_closest:
+            detector_matrix_closest[another_element, element] += 1
+        for another_element in digitized_lowest:
+            detector_matrix_lowest[another_element, element] += 1
+        for another_element in digitized_classic:
+            detector_matrix_classic[another_element, element] += 1
+
+    # Now normalize the detector arrays
+    M_norm = np.diag(1 / np.sum(detector_matrix_closest, axis=0))
+    detector_matrix_closest = np.dot(detector_matrix_closest, M_norm)
+
+    M_norm = np.diag(1 / np.sum(detector_matrix_lowest, axis=0))
+    detector_matrix_lowest = np.dot(detector_matrix_lowest, M_norm)
+
+    M_norm = np.diag(1 / np.sum(detector_matrix_classic, axis=0))
+    detector_matrix_classic = np.dot(detector_matrix_classic, M_norm)
+
+    u, tree_singular_values, v = np.linalg.svd(detector_matrix_tree)
+    u, closest_singular_values, v = np.linalg.svd(detector_matrix_closest)
+    u, lowest_singular_values, v = np.linalg.svd(detector_matrix_lowest)
+    u, classic_singular_values, v = np.linalg.svd(detector_matrix_classic)
+
+    tree_singular_values = tree_singular_values/max(tree_singular_values)
+    closest_singular_values = closest_singular_values/max(closest_singular_values)
+    lowest_singular_values = lowest_singular_values/max(lowest_singular_values)
+    classic_singular_values = classic_singular_values/max(classic_singular_values)
+
+    step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0])
+    step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
+    step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
+    step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
+
+    plt.step(step_function_x_c, closest_singular_values, where="mid", label="Closest Binning (k: " + str(1.0/min(closest_singular_values)))
+    plt.step(step_function_x_l, lowest_singular_values, where="mid", label="Lowest Binning (k: " + str(1.0/min(lowest_singular_values)))
+    plt.step(step_function_x_t, tree_singular_values, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_singular_values)))
+    plt.step(step_function_x_class, classic_singular_values, where="mid", label="Classic Binning (k: " + str(1.0/min(classic_singular_values)))
+    plt.xlabel("Singular Value Number")
+    plt.legend(loc="best")
+    plt.savefig("Singular_Values.png")
+    plt.clf()
 
 
 
