@@ -468,14 +468,28 @@ if __name__ == '__main__':
     detector_matrix_lowest = np.zeros(shape=(max(digitized_lowest)+1, max(binned_E_validate)+1))
     detector_matrix_classic = np.zeros(shape=(max(digitized_classic)+1, max(binned_E_validate)+1))
 
-    for element in binned_E_validate:
+    def make_detector(digitized_signal, digitized_true):
+        detector_temp_matrix = np.zeros(shape=(max(digitized_signal)+1, max(digitized_true)+1))
+        for element in digitized_true:
+            for another_element in digitized_signal:
+                detector_temp_matrix[another_element, element] += 1
+        return detector_temp_matrix
+
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executer:
+        detector_matrix_closest = executer.submit(make_detector, digitized_closest, binned_E_validate)
+        detector_matrix_lowest = executer.submit(make_detector, digitized_lowest, binned_E_validate)
+        detector_matrix_classic = executer.submit(make_detector, digitized_classic, binned_E_validate)
+
+    #for element in binned_E_validate:
         # Closest one
-        for another_element in digitized_closest:
-            detector_matrix_closest[another_element, element] += 1
-        for another_element in digitized_lowest:
-            detector_matrix_lowest[another_element, element] += 1
-        for another_element in digitized_classic:
-            detector_matrix_classic[another_element, element] += 1
+    #    for another_element in digitized_closest:
+    #        detector_matrix_closest[another_element, element] += 1
+    #    for another_element in digitized_lowest:
+    #        detector_matrix_lowest[another_element, element] += 1
+    #    for another_element in digitized_classic:
+    #        detector_matrix_classic[another_element, element] += 1
 
     # Now normalize the detector arrays
     M_norm = np.diag(1 / np.sum(detector_matrix_closest, axis=0))
