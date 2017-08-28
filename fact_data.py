@@ -435,6 +435,13 @@ if __name__ == '__main__':
 
     digitized_classic = classic_binning.digitize(detected_energy_tree)
 
+    tree_binning_model.initialize(
+        digitized_obs=digitized_classic,
+        digitized_truth=binned_E_validate
+    )
+
+    detector_matrix_classic = tree_binning_model.A
+
     closest = classic_binning.merge(detected_energy_tree,
                                     min_samples=threshold,
                                     max_bins=None,
@@ -451,55 +458,55 @@ if __name__ == '__main__':
         digitized_obs=digitized_closest,
         digitized_truth=binned_E_validate
     )
-    detector_matrix_tree_closest = tree_binning_model.A
+    detector_matrix_closest = tree_binning_model.A
 
     tree_binning_model.initialize(
         digitized_obs=digitized_lowest,
         digitized_truth=binned_E_validate
     )
-    detector_matrix_tree_lowest = tree_binning_model.A
+    detector_matrix_lowest = tree_binning_model.A
 
     #assert detector_matrix_tree_closest.shape != detector_matrix_tree_lowest.shape
 
 
     # now build the detector matrix from the digitized true and detected ones
+    if False:
+        detector_matrix_closest = np.zeros(shape=(max(digitized_closest)+1, max(binned_E_validate)+1))
+        detector_matrix_lowest = np.zeros(shape=(max(digitized_lowest)+1, max(binned_E_validate)+1))
+        detector_matrix_classic = np.zeros(shape=(max(digitized_classic)+1, max(binned_E_validate)+1))
 
-    detector_matrix_closest = np.zeros(shape=(max(digitized_closest)+1, max(binned_E_validate)+1))
-    detector_matrix_lowest = np.zeros(shape=(max(digitized_lowest)+1, max(binned_E_validate)+1))
-    detector_matrix_classic = np.zeros(shape=(max(digitized_classic)+1, max(binned_E_validate)+1))
+        def make_detector(digitized_signal, digitized_true):
+            detector_temp_matrix = np.zeros(shape=(max(digitized_signal)+1, max(digitized_true)+1))
+            for element in digitized_true:
+                for another_element in digitized_signal:
+                    detector_temp_matrix[another_element, element] += 1
+            return detector_temp_matrix
 
-    def make_detector(digitized_signal, digitized_true):
-        detector_temp_matrix = np.zeros(shape=(max(digitized_signal)+1, max(digitized_true)+1))
-        for element in digitized_true:
-            for another_element in digitized_signal:
-                detector_temp_matrix[another_element, element] += 1
-        return detector_temp_matrix
+        import concurrent.futures
 
-    import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executer:
+            detector_matrix_closest = executer.submit(make_detector, digitized_closest, binned_E_validate)
+            detector_matrix_lowest = executer.submit(make_detector, digitized_lowest, binned_E_validate)
+            detector_matrix_classic = executer.submit(make_detector, digitized_classic, binned_E_validate)
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executer:
-        detector_matrix_closest = executer.submit(make_detector, digitized_closest, binned_E_validate)
-        detector_matrix_lowest = executer.submit(make_detector, digitized_lowest, binned_E_validate)
-        detector_matrix_classic = executer.submit(make_detector, digitized_classic, binned_E_validate)
+        #for element in binned_E_validate:
+            # Closest one
+        #    for another_element in digitized_closest:
+        #        detector_matrix_closest[another_element, element] += 1
+        #    for another_element in digitized_lowest:
+        #        detector_matrix_lowest[another_element, element] += 1
+        #    for another_element in digitized_classic:
+        #        detector_matrix_classic[another_element, element] += 1
 
-    #for element in binned_E_validate:
-        # Closest one
-    #    for another_element in digitized_closest:
-    #        detector_matrix_closest[another_element, element] += 1
-    #    for another_element in digitized_lowest:
-    #        detector_matrix_lowest[another_element, element] += 1
-    #    for another_element in digitized_classic:
-    #        detector_matrix_classic[another_element, element] += 1
+        # Now normalize the detector arrays
+        M_norm = np.diag(1 / np.sum(detector_matrix_closest, axis=0))
+        detector_matrix_closest = np.dot(detector_matrix_closest, M_norm)
 
-    # Now normalize the detector arrays
-    M_norm = np.diag(1 / np.sum(detector_matrix_closest, axis=0))
-    detector_matrix_closest = np.dot(detector_matrix_closest, M_norm)
+        M_norm = np.diag(1 / np.sum(detector_matrix_lowest, axis=0))
+        detector_matrix_lowest = np.dot(detector_matrix_lowest, M_norm)
 
-    M_norm = np.diag(1 / np.sum(detector_matrix_lowest, axis=0))
-    detector_matrix_lowest = np.dot(detector_matrix_lowest, M_norm)
-
-    M_norm = np.diag(1 / np.sum(detector_matrix_classic, axis=0))
-    detector_matrix_classic = np.dot(detector_matrix_classic, M_norm)
+        M_norm = np.diag(1 / np.sum(detector_matrix_classic, axis=0))
+        detector_matrix_classic = np.dot(detector_matrix_classic, M_norm)
 
     u, tree_singular_values, v = np.linalg.svd(detector_matrix_tree)
     u, closest_singular_values, v = np.linalg.svd(detector_matrix_closest)
@@ -516,12 +523,15 @@ if __name__ == '__main__':
     step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
     step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
 
+
+
     plt.step(step_function_x_c, closest_singular_values, where="mid", label="Closest Binning (k: " + str(1.0/min(closest_singular_values)))
     plt.step(step_function_x_l, lowest_singular_values, where="mid", label="Lowest Binning (k: " + str(1.0/min(lowest_singular_values)))
     plt.step(step_function_x_t, tree_singular_values, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_singular_values)))
     plt.step(step_function_x_class, classic_singular_values, where="mid", label="Classic Binning (k: " + str(1.0/min(classic_singular_values)))
     plt.xlabel("Singular Value Number")
     plt.legend(loc="best")
+    plt.yscale('log')
     plt.savefig("Singular_Values.png")
     plt.clf()
 
@@ -553,95 +563,6 @@ if __name__ == '__main__':
 
 
 
-
-
-
-
-    classic_binned_array = np.outer(classic_binned, real_energy_binned)
-
-    if False:
-        threshold = 100
-
-        closest_binned = classic_binning.merge(raw_points,
-                                                min_samples=threshold,
-                                                max_bins=None,
-                                                mode='closest')
-
-        closest_binned = closest_binned.histogram(raw_points)
-        lowest_binned = classic_binning.merge(raw_points,
-                                               min_samples=threshold,
-                                               max_bins=None,
-                                               mode='lowest')
-        lowest_binned = lowest_binned.histogram(raw_points)
-
-    closest_binned_array = np.outer(closest_binned, real_energy_binned)
-    lowest_binned_array = np.outer(lowest_binned, real_energy_binned)
-    tree_binned_array = np.outer(counts_per_bin, real_energy_binned)
-    similar_reg_binned_array = np.outer(closest_binning, real_energy_binned)
-    similar_binned_array = np.outer(lowest_binning, real_energy_binned)
-
-    # See if this normalization helps at all...
-    def normalizer(response_matrix):
-        normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
-        response_matrix = np.dot(response_matrix, normalizer)
-        return response_matrix
-    closest_binned_array = normalizer(closest_binned_array)
-    lowest_binned_array = normalizer(lowest_binned_array)
-    tree_binned_array = normalizer(tree_binned_array)
-    classic_binning_array = normalizer(classic_binned_array)
-    similar_reg_binned_array = normalizer(similar_reg_binned_array)
-    similar_binned_array = normalizer(similar_binned_array)
-
-    u, c_s, v = np.linalg.svd(closest_binned_array)
-    u, l_s, v = np.linalg.svd(lowest_binned_array)
-    u, tree_s, v = np.linalg.svd(tree_binned_array)
-    u, classic_s, v = np.linalg.svd(classic_binned_array)
-    u, s_c, v = np.linalg.svd(similar_reg_binned_array)
-    s, s_l, v = np.linalg.svd(similar_binned_array)
-
-    # Do one over max to get condition numbers
-    c_s = c_s/max(c_s)
-    l_s = l_s/max(l_s)
-    s_c = s_c/max(s_c)
-    s_l = s_l/max(s_l)
-    tree_s = tree_s/max(tree_s)
-    classic_s = classic_s/max(classic_s)
-
-    # Plot the step function of the numbers
-    step_function_x_c = np.linspace(0, c_s.shape[0], c_s.shape[0])
-    step_function_x_l = np.linspace(0, l_s.shape[0], l_s.shape[0])
-    step_function_x_t = np.linspace(0, tree_s.shape[0], tree_s.shape[0])
-    step_function_x_class = np.linspace(0, classic_s.shape[0], classic_s.shape[0])
-    step_function_x_c_s = np.linspace(0, s_c.shape[0], s_c.shape[0])
-    step_function_x_l_s = np.linspace(0, s_l.shape[0], s_l.shape[0])
-
-    plt.step(step_function_x_c, c_s, where="mid", label="Closest Binning (k: " + str(1.0/min(c_s)))
-    plt.step(step_function_x_l, l_s, where="mid", label="Lowest Binning (k: " + str(1.0/min(l_s)))
-    plt.step(step_function_x_c_s, s_c, where="mid", label="Similar Reg Binned (k: " + str(1.0/min(s_c)))
-    plt.step(step_function_x_l_s, s_l, where="mid", label="Similar Binned (k: " + str(1.0/min(l_s)))
-    plt.step(step_function_x_t, tree_s, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_s)))
-    plt.step(step_function_x_class, classic_s, where="mid", label="Classic Binning (k: " + str(1.0/min(classic_s)))
-    plt.xlabel("Singular Value Number")
-    plt.legend(loc="best")
-    plt.ylim(0, 1.5e-16)
-    plt.savefig("Wrong_Sing_Vals_mag.png")
-    plt.clf()
-
-    closest_binning_two = np.linspace(0, closest_binned.shape[0]+1, closest_binned.shape[0])
-
-    # Need to fix the error with real_energy and closest_binned not having same number of elements (either bin real_energy or unbin closest_binned?
-
-    # Now go through the different binnings to get response matrix and singular values
-    #get_response_matrix2(binned_true, lowest_binned, lowest_binned.shape[0], binning_f)
-    #get_response_matrix2(binned_true, counts_per_bin, counts_per_bin.shape[0], binning_f)
-
-    # Now have the counts per each bin in the fit
-    if False:
-        plt.plot(counts_per_bin)
-        plt.title("Counts per bin from TreeBinningSklearn")
-        plt.ylabel("Counts")
-        plt.xlabel("Bin Number")
-        plt.show()
 
     # Get the eigenvalues/vectors of the results to compare vs the noise
     real_energy = df_detector.corsika_evt_header_total_energy
@@ -686,8 +607,6 @@ if __name__ == '__main__':
     vec_g, vec_f = model.generate_vectors(binned_g, binned_f)
 
     # Get the V. Blobel plot for the measured distribution
-
-
 
     # Plot different binning's singular values
     y_validate = df_detector.get(tree_obs).values
