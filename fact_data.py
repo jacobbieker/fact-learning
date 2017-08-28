@@ -465,10 +465,40 @@ if __name__ == '__main__':
     plt.clf()
 
     # Blobel Thing
-    linear_binning_model = ff.model.LinearModel()
+    fig, ax = plt.subplots()
+    def compare_binning_svd(binned_g, binned_E, title):
+        linear_binning_model = ff.model.LinearModel()
 
-    # binned_g_validate = binned_g_validate[:10000]
-    # binned_E_validate = binned_E_validate[:10000]
+        # binned_g_validate = binned_g_validate[:10000]
+        # binned_E_validate = binned_E_validate[:10000]
+        linear_binning_model.initialize(digitized_obs=binned_g,
+                                        digitized_truth=binned_E)
+
+        vec_y, vec_x = linear_binning_model.generate_vectors(
+            digitized_obs=binned_g,
+            digitized_truth=binned_E)
+
+        vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
+            linear_binning_model, vec_y, vec_x)
+
+        normed_b = np.absolute(vec_b / sigma_b)
+        normed_b_est = np.absolute(vec_b_est / sigma_b)
+        order = np.argsort(normed_b)[::-1]
+
+        normed_b = normed_b[order]
+        normed_b_est = normed_b_est[order]
+        binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
+        bin_centers = (binning[1:] + binning[:-1]) / 2
+        bin_width = (binning[1:] - binning[:-1]) / 2
+
+        ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
+                histtype='step')
+
+    compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
+    compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
+    compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
+    compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
+
     linear_binning_model.initialize(digitized_obs=binned_g_validate,
                                     digitized_truth=binned_E_validate)
     # binned_E_validate += 1
@@ -489,7 +519,6 @@ if __name__ == '__main__':
 
     normed_b = normed_b[order]
     normed_b_est = normed_b_est[order]
-    fig, ax = plt.subplots()
     binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
     bin_centers = (binning[1:] + binning[:-1]) / 2
     bin_width = (binning[1:] - binning[:-1]) / 2
@@ -499,8 +528,8 @@ if __name__ == '__main__':
             weights=normed_b,
             label='Truth',
             histtype='step')
-    ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded',
-            histtype='step')
+
+
     ax.axhline(1.)
     ax.set_xlabel(r'Index $j$')
     ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
@@ -508,3 +537,4 @@ if __name__ == '__main__':
     ax.set_yscale("log", nonposy='clip')
     ax.legend(loc='best')
     fig.savefig('08_classic_binning.png')
+
