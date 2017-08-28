@@ -97,16 +97,12 @@ def gradient_array(f, actual_observed, detector_matrix, tau, C_prime, regularize
             prior = tau * np.sum(np.dot(C_prime[:, k], np.log10(f * a + 1)))
         else:
             prior = 0
-        # print("Compare prior - np sum vs way in other one---------------------------------------------------------")
-        # print(prior - np.sum(inside_gradient[k]))
-        # print(prior - possion_part)
         h[k] = prior - possion_part  # np.sum(inside_gradient[k])
     return h
 
 
 def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularized=True):
     H = np.zeros(shape=(detector_matrix.shape[1], detector_matrix.shape[1]), dtype=np.float64)
-    # print(H.shape)
     # Trying to get d^2S/df_kdf_l = Hk,l = This?
     for k in range(H.shape[1]):
         for l in range(H.shape[1]):
@@ -121,11 +117,7 @@ def hessian_matrix(f, actual_observed, detector_matrix, tau, C_prime, regularize
             else:
                 prior = 0
             H[k, l] = possion_part + prior
-
-    # Now the variance/error is the inverse of the Hessian, so might as well compute it here
-    # print(H)
-    error = np.linalg.inv(H)
-    return H, error
+    return H
 
 
 def calculate_C(data):

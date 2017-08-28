@@ -426,7 +426,7 @@ def bin_data(signal, true_energy, detector_response_matrix):
 
 
 if __name__ == "__main__":
-    model = ff.model.BasicLinearModel()
+    model = ff.model.LinearModel()
     dataset = generate_data(1347, response_bins=31, rectangular_bins=21)
     # np.save("detector_data_10", arr=dataset)
     #reloaded_data = np.load("detector_data.npy")
@@ -467,12 +467,12 @@ if __name__ == "__main__":
         plt.show()
 
     # test_same_dataset_std(1347, reloaded_data, )
-    # test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
     # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
     # test_identity_response_matrix_unfolding(1347, )
-    test_svd_unfolding(1347, detector_data=reloaded_data, plot=False)
+    #test_svd_unfolding(1347, detector_data=reloaded_data, plot=False)
     # test_epsilon_svd_unfolding(1347, plot=True)
     # test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
     # test_multiple_datasets_std(1347, method=svd_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)

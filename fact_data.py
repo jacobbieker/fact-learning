@@ -158,6 +158,7 @@ def SVD_Unf(model, vec_y, vec_x):
 
     return vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, S_values[order]
 
+
 def decision_tree(dataset_test, dataset_train, tree_obs, max_bins=None, random_state=None):
     X_tree = dataset_train.get(tree_obs).values
     X_tree_test = dataset_test.get(tree_obs).values
@@ -226,7 +227,7 @@ def classic_tree(dataset_test, dataset_train, plot=False):
 
 def try_different_classic_binning(dataset, bins_true=15, bins_measured=25, similar_test=False):
     classic_binning = ff.binning.ClassicBinning(
-        bins = [15, 25],
+        bins=[15, 25],
     )
     dataset = dataset.values
     for index, mini_array in enumerate(dataset):
@@ -236,7 +237,6 @@ def try_different_classic_binning(dataset, bins_true=15, bins_measured=25, simil
     dataset = np.float64(dataset)
     print(dataset.shape)
     classic_binning.fit(dataset)
-
 
     threshold = 100
 
@@ -254,11 +254,11 @@ def try_different_classic_binning(dataset, bins_true=15, bins_measured=25, simil
     if similar_test:
         y_mean = 1.5
         y_clf = np.zeros(dataset.shape[0])
-        is_pos = dataset[: ,0] * dataset[:, 1] > 0
+        is_pos = dataset[:, 0] * dataset[:, 1] > 0
         y_clf[is_pos] = np.random.normal(loc=y_mean, size=np.sum(is_pos))
         y_clf[~is_pos] = np.random.normal(loc=-y_mean, size=np.sum(~is_pos))
         y_clf = np.array(y_clf >= 0, dtype=int)
-        y_means = np.sqrt(dataset[:, 0]**2 + dataset[:, 0]**2)
+        y_means = np.sqrt(dataset[:, 0] ** 2 + dataset[:, 0] ** 2)
         y_reg = np.random.normal(loc=y_means,
                                  scale=0.3)
         similar_clf = classic_binning.merge(dataset,
@@ -291,7 +291,6 @@ def get_binning(original_energy_distribution, signal):
 
 
 def get_response_matrix2(original_energy_distribution, signal, binning_g, binning_f):
-
     response_matrix = np.histogram2d(signal, original_energy_distribution, bins=(binning_g, binning_f))[0]
     normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
     response_matrix = np.dot(response_matrix, normalizer)
@@ -314,6 +313,7 @@ def get_eigenvalues_and_condition(detector_matrix, full_matrix=False):
     print("Kappa:\n", str(kappa))
     return eigen_vals, D, kappa
 
+
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
 
@@ -326,14 +326,14 @@ if __name__ == '__main__':
 
     # Get the "test" vs non test data
     df_train = on_data[10000:]
-    df_test= on_data[:10000]
+    df_test = on_data[:10000]
 
     # Split into 20 /80 mix for tree/detector matrix sets
-    df_detector = df_train[int(0.8*len(df_train)):]
-    df_tree = df_train[:int(0.8*len(df_train))]
+    df_detector = df_train[int(0.8 * len(df_train)):]
+    df_tree = df_train[:int(0.8 * len(df_train))]
 
-    real_bins=21
-    signal_bins=26
+    real_bins = 21
+    signal_bins = 26
 
     tree_obs = ["size",
                 "width",
@@ -354,11 +354,10 @@ if __name__ == '__main__':
                 "ph_charge_shower_variance",
                 "ph_charge_shower_max"]
 
-
     # Now try it the other way of making the detector response with the digitized values
 
 
-    detected_energy_test = df_test.get("gamma_energy_prediction").values
+    detected_energy_test = df_test.get(tree_obs).values
     real_energy_test = df_test.get("corsika_evt_header_total_energy").values
 
     detected_energy_tree = df_tree.get(tree_obs).values
@@ -370,8 +369,8 @@ if __name__ == '__main__':
     binning_energy = np.linspace(2.3, 4.7, real_bins)
     binning_detected = np.linspace(2.3, 4.7, signal_bins)
 
-    binned_E_validate = np.digitize(real_energy_tree, binning_energy)
-    binned_E_train = np.digitize(real_energy_detector, binning_detected)
+    binned_E_validate = np.digitize(real_energy_detector, binning_energy)
+    binned_E_train = np.digitize(real_energy_tree, binning_detected)
 
     threshold = 100
 
@@ -384,84 +383,81 @@ if __name__ == '__main__':
         max_leaf_nodes=None,
         random_state=1337)
 
-    #detected_energy_tree = detected_energy_tree[:, None]
-    #real_energy_detector = real_energy_detector[:, None]
-    #detected_energy_detector = detected_energy_detector[:, None]
+    tree_binning.fit(detected_energy_tree, binned_E_train)
+    binned_g_validate = tree_binning.digitize(detected_energy_detector)
 
-    tree_binning.fit(detected_energy_detector, binned_E_train)
-    #real_energy_detector = real_energy_detector[:,]
-    binned_g_validate = tree_binning.digitize(detected_energy_tree)
-
-    tree_binning_model = ff.model.LinearModel()
-    tree_binning_model.initialize(
+    linear_binning_model = ff.model.LinearModel()
+    linear_binning_model.initialize(
         digitized_obs=binned_g_validate,
         digitized_truth=binned_E_validate
     )
 
-    detector_matrix_tree = tree_binning_model.A
+    detector_matrix_tree = linear_binning_model.A
 
     # Now have the tree binning response matrix, need classic binning ones
 
     classic_binning = ff.binning.ClassicBinning(
-        bins = [real_bins, signal_bins],
+        bins=[real_bins, signal_bins],
     )
-    #testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
+    # testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
     classic_binning.initialize(detected_energy_tree)
 
-    digitized_classic = classic_binning.digitize(detected_energy_tree)
+    digitized_classic = classic_binning.digitize(detected_energy_detector)
 
-    tree_binning_model.initialize(
+    linear_binning_model.initialize(
         digitized_obs=digitized_classic,
         digitized_truth=binned_E_validate
     )
 
-    detector_matrix_classic = tree_binning_model.A
+    detector_matrix_classic = linear_binning_model.A
 
-    closest = classic_binning.merge(detected_energy_tree,
+    closest = classic_binning.merge(detected_energy_detector,
                                     min_samples=threshold,
                                     max_bins=None,
                                     mode='closest')
-    digitized_closest = closest.digitize(detected_energy_tree)
+    digitized_closest = closest.digitize(detected_energy_detector)
 
-    lowest = classic_binning.merge(detected_energy_tree,
+    lowest = classic_binning.merge(detected_energy_detector,
                                    min_samples=threshold,
                                    max_bins=None,
                                    mode='lowest')
-    digitized_lowest = lowest.digitize(detected_energy_tree)
+    digitized_lowest = lowest.digitize(detected_energy_detector)
 
-    tree_binning_model.initialize(
+    linear_binning_model.initialize(
         digitized_obs=digitized_closest,
         digitized_truth=binned_E_validate
     )
-    detector_matrix_closest = tree_binning_model.A
+    detector_matrix_closest = linear_binning_model.A
 
-    tree_binning_model.initialize(
+    linear_binning_model.initialize(
         digitized_obs=digitized_lowest,
         digitized_truth=binned_E_validate
     )
-    detector_matrix_lowest = tree_binning_model.A
-
-    #assert detector_matrix_tree_closest.shape != detector_matrix_tree_lowest.shape
+    detector_matrix_lowest = linear_binning_model.A
 
     u, tree_singular_values, v = np.linalg.svd(detector_matrix_tree)
     u, closest_singular_values, v = np.linalg.svd(detector_matrix_closest)
     u, lowest_singular_values, v = np.linalg.svd(detector_matrix_lowest)
     u, classic_singular_values, v = np.linalg.svd(detector_matrix_classic)
 
-    tree_singular_values = tree_singular_values/max(tree_singular_values)
-    closest_singular_values = closest_singular_values/max(closest_singular_values)
-    lowest_singular_values = lowest_singular_values/max(lowest_singular_values)
-    classic_singular_values = classic_singular_values/max(classic_singular_values)
+    tree_singular_values = tree_singular_values / max(tree_singular_values)
+    closest_singular_values = closest_singular_values / max(closest_singular_values)
+    lowest_singular_values = lowest_singular_values / max(lowest_singular_values)
+    classic_singular_values = classic_singular_values / max(classic_singular_values)
 
     step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0])
     step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
     step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
     step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
 
-    plt.step(step_function_x_c, closest_singular_values, where="mid", label="Closest Binning (k: " + str(1.0/min(closest_singular_values)))
-    plt.step(step_function_x_l, lowest_singular_values, where="mid", label="Lowest Binning (k: " + str(1.0/min(lowest_singular_values)))
-    plt.step(step_function_x_t, tree_singular_values, where="mid", label="Tree Binning (k: " + str(1.0/min(tree_singular_values)))
-    plt.step(step_function_x_class, classic_singular_values, where="mid", label="Classic Binning (k: " + str(1.0/min(classic_singular_values)))
+    plt.step(step_function_x_c, closest_singular_values, where="mid",
+             label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
+    plt.step(step_function_x_l, lowest_singular_values, where="mid",
+             label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
+    plt.step(step_function_x_t, tree_singular_values, where="mid",
+             label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
+    plt.step(step_function_x_class, classic_singular_values, where="mid",
+             label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
     plt.xlabel("Singular Value Number")
     plt.legend(loc="best")
     plt.yscale('log')
@@ -469,20 +465,23 @@ if __name__ == '__main__':
     plt.clf()
 
     # Blobel Thing
-    tree_binning_model = ff.model.LinearModel()
-    tree_binning_model.initialize(digitized_obs=binned_E_train,
-                                  digitized_truth=binned_E_validate)
+    linear_binning_model = ff.model.LinearModel()
 
-    vec_g, vec_f = tree_binning_model.generate_vectors(binned_E_validate, binned_E_validate)
+    # binned_g_validate = binned_g_validate[:10000]
+    # binned_E_validate = binned_E_validate[:10000]
+    linear_binning_model.initialize(digitized_obs=binned_g_validate,
+                                    digitized_truth=binned_E_validate)
+    # binned_E_validate += 1
+    vec_g, vec_f = linear_binning_model.generate_vectors(binned_g_validate, binned_E_validate)
 
     # Get the V. Blobel plot for the measured distribution
 
-    vec_y, vec_x = tree_binning_model.generate_vectors(
-        digitized_obs=binned_E_validate,
+    vec_y, vec_x = linear_binning_model.generate_vectors(
+        digitized_obs=binned_g_validate,
         digitized_truth=binned_E_validate)
 
     vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
-        tree_binning_model, vec_y, vec_x)
+        linear_binning_model, vec_y, vec_x)
 
     normed_b = np.absolute(vec_b / sigma_b)
     normed_b_est = np.absolute(vec_b_est / sigma_b)
@@ -509,13 +508,3 @@ if __name__ == '__main__':
     ax.set_yscale("log", nonposy='clip')
     ax.legend(loc='best')
     fig.savefig('08_classic_binning.png')
-
-
-
-
-
-
-
-
-
-
