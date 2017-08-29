@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import funfolding as ff
 from funfolding import discretization
 import numpy as np
@@ -547,6 +550,6 @@ if __name__ == '__main__':
     ax.legend(loc='best')
     fig.savefig('08_classic_binning.png')
 
-    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=8, num_used_steps=2000, random_state=1347)
+    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=6, num_used_steps=2000, random_state=1347)
     evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
 
