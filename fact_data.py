@@ -73,17 +73,17 @@ Basically need digitized things to make it work correctly and to build the detec
 
 log = logging.getLogger("setup_pypet")
 
-# df = pd.read_hdf("gamma_precuts.hdf5")
-# print(list(df))
+#df = pd.read_hdf("gamma_precuts.hdf5")
+#print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
 
 
-# mc_df = read_h5py("gamma_test.hdf5", key='events')
-# print(list(mc_df))
+#mc_df = read_h5py("gamma_test.hdf5", key='events')
+#print(list(mc_df))
 
 
 def load_gamma_subset(sourcefile,
-                      theta2_cut=0.0, conf_cut=0.9, num_off_positions=1, analysis_type='classic'):
+                      theta2_cut=0.0, conf_cut=0.9, num_off_positions=1, analysis_type='classic', with_runs=False):
     events = read_h5py(sourcefile, key='events')
 
     selection_columns = ['theta_deg', 'gamma_prediction', 'zd_tracking', 'conc_core']
@@ -118,6 +118,14 @@ def load_gamma_subset(sourcefile,
     log.info("\t\t{} Data Events ({} off regions)".format(len(off_data),
                                                           num_off_positions))
     log.info("\t{} MC gammas after selection".format(len(on_mc)))
+
+    if with_runs:
+        runs = read_h5py(sourcefile, key='runs')
+        t_obs = runs.ontime.sum()
+
+    n_events_per_off_region = len(off_data) / num_off_positions
+    n_events_on_region = len(on_data)
+    n_events_expected_signal = n_events_on_region - n_events_per_off_region
 
     return on_mc, on_data, off_data
 
@@ -160,161 +168,6 @@ def SVD_Unf(model, vec_y, vec_x):
     sigma_b = np.sqrt(np.diag(V_b))
 
     return vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, S_values[order]
-
-
-def decision_tree(dataset_test, dataset_train, tree_obs, max_bins=None, random_state=None):
-    X_tree = dataset_train.get(tree_obs).values
-    X_tree_test = dataset_test.get(tree_obs).values
-    binning_E = np.linspace(2.4, 4.2, 10)
-    binned_E = np.digitize(dataset_train.corsika_evt_header_total_energy,
-                           binning_E)
-    binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
-                                binning_E)
-    if max_bins is None:
-        tree_binning = ff.binning.TreeBinningSklearn(random_state=random_state)
-    else:
-        tree_binning = ff.binning.TreeBinningSklearn(random_state=random_state, min_samples_leaf=max_bins)
-    tree_binning.fit(X_tree_test, binned_E_test)
-
-    print("Number of bins: " + str(tree_binning.n_bins))
-
-    print(tree_binning.tree.tree_.feature)
-    print(len(tree_binning.tree.tree_.feature))
-
-    # tree_binning = discretization.TreeBinning()
-
-    # tree_binning.fit(X_tree_test, binned_E_test)
-
-    # print(tree_binning.tree.feature)
-    # print(tree_binning.tree.threshold)
-    return tree_binning, tree_binning.digitize(X_tree_test)
-
-
-def classic_tree(dataset_test, dataset_train, plot=False):
-    X = dataset_train.get(['conc_core', 'gamma_energy_prediction']).values
-    X_test = dataset_test.get(['conc_core', 'gamma_energy_prediction']).values
-
-    binning_E = np.linspace(2.4, 4.2, 10)
-    binned_E = np.digitize(dataset_train.corsika_evt_header_total_energy,
-                           binning_E)
-    binned_E_test = np.digitize(dataset_test.corsika_evt_header_total_energy,
-                                binning_E)
-    classic_binning = ff.binning.ClassicBinning(
-        bins=[15, 25])
-    classic_binning.fit(X)
-    if plot:
-        fig, ax = plt.subplots()
-        ff.discretization.visualize_classic_binning(ax,
-                                                    classic_binning,
-                                                    X,
-                                                    log_c=True,
-                                                    cmap='viridis')
-        fig.savefig('05_fact_example_original_binning_log.png')
-
-    closest = classic_binning.merge(X_test,
-                                    min_samples=100,
-                                    max_bins=None,
-                                    mode='closest')
-    if plot:
-        fig, ax = plt.subplots()
-        ff.discretization.visualize_classic_binning(ax,
-                                                    closest,
-                                                    X,
-                                                    log_c=True,
-                                                    cmap='viridis')
-
-        fig.savefig('05_fact_example_original_binning_closest_log.png')
-
-    return closest, X
-
-
-def try_different_classic_binning(dataset, bins_true=15, bins_measured=25, similar_test=False):
-    classic_binning = ff.binning.ClassicBinning(
-        bins=[15, 25],
-    )
-    dataset = dataset.values
-    for index, mini_array in enumerate(dataset):
-        mini_array[0] = min(mini_array[1:])
-        mini_array = np.float64(mini_array)
-        dataset[index] = mini_array
-    dataset = np.float64(dataset)
-    print(dataset.shape)
-    classic_binning.fit(dataset)
-
-    threshold = 100
-
-    closest = classic_binning.merge(dataset,
-                                    min_samples=threshold,
-                                    max_bins=None,
-                                    mode='closest')
-    binned_closest = closest.histogram(dataset)
-
-    lowest = classic_binning.merge(dataset,
-                                   min_samples=threshold,
-                                   max_bins=None,
-                                   mode='lowest')
-    binned_lowest = lowest.histogram(dataset)
-    if similar_test:
-        y_mean = 1.5
-        y_clf = np.zeros(dataset.shape[0])
-        is_pos = dataset[:, 0] * dataset[:, 1] > 0
-        y_clf[is_pos] = np.random.normal(loc=y_mean, size=np.sum(is_pos))
-        y_clf[~is_pos] = np.random.normal(loc=-y_mean, size=np.sum(~is_pos))
-        y_clf = np.array(y_clf >= 0, dtype=int)
-        y_means = np.sqrt(dataset[:, 0] ** 2 + dataset[:, 0] ** 2)
-        y_reg = np.random.normal(loc=y_means,
-                                 scale=0.3)
-        similar_clf = classic_binning.merge(dataset,
-                                            min_samples=threshold,
-                                            max_bins=None,
-                                            mode='similar',
-                                            y=y_clf)
-        binned_similar_clf = similar_clf.histogram(dataset)
-
-        similar_reg = classic_binning.merge(dataset,
-                                            min_samples=threshold,
-                                            max_bins=None,
-                                            mode='similar',
-                                            y=y_reg)
-        binned_similar_reg = similar_reg.histogram(dataset)
-
-    if similar_test:
-        return binned_closest, binned_lowest, binned_similar_clf, binned_similar_reg
-    else:
-        return binned_closest, binned_lowest, closest, lowest
-
-
-def get_binning(original_energy_distribution, signal):
-    binnings = []
-    for r in [(min(signal), max(signal)), (min(original_energy_distribution), max(original_energy_distribution))]:
-        low = r[0]
-        high = r[-1]
-        binnings.append(np.linspace(low, high + 1, high - low + 2))
-    return binnings[0], binnings[1]
-
-
-def get_response_matrix2(original_energy_distribution, signal, binning_g, binning_f):
-    response_matrix = np.histogram2d(signal, original_energy_distribution, bins=(binning_g, binning_f))[0]
-    normalizer = np.diag(1. / np.sum(response_matrix, axis=0))
-    response_matrix = np.dot(response_matrix, normalizer)
-
-    # response_matrix.shape[1] is the one for f, /.the true distribution binning
-    # response_matrix.shape[0] is for the binning of g
-    print(response_matrix.shape)
-
-    return response_matrix
-
-
-def get_eigenvalues_and_condition(detector_matrix, full_matrix=False):
-    u, s, v = np.linalg.svd(detector_matrix, full_matrices=full_matrix)
-    eigen_vals = np.absolute(s)
-    sorting = np.argsort(eigen_vals)[::-1]
-    eigen_vals = eigen_vals[sorting]
-    # U = eigen_vecs
-    D = np.diag(eigen_vals)
-    kappa = max(eigen_vals) / min(eigen_vals)
-    print("Kappa:\n", str(kappa))
-    return eigen_vals, D, kappa
 
 
 if __name__ == '__main__':
@@ -550,6 +403,44 @@ if __name__ == '__main__':
     ax.legend(loc='best')
     fig.savefig('08_classic_binning.png')
 
-    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=6, num_used_steps=2000, random_state=1347)
-    evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
+
+    def generate_acceptance_correction(vec_f_truth,
+                                       binning,
+                                       measurement,
+                                       logged_truth):
+        e_min = 200
+        e_max = 50000
+        gamma = -2.7
+        n_showers = 12000000
+        if logged_truth:
+            binning = np.power(10., binning)
+        normalization = (gamma + 1 ) / (e_max**(gamma + 1) - e_min**(gamma + 1))
+        corsika_cdf = lambda E: normalization * E**(gamma + 1) / (gamma + 1)
+        vec_acceptance = np.zeros_like(vec_f_truth, dtype=float)
+        for i, vec_i_detected in enumerate(vec_f_truth):
+            p_bin_i = corsika_cdf(binning[i +1]) - corsika_cdf(binning[i])
+            vec_acceptance[i] = p_bin_i * n_showers / vec_i_detected
+        flux_factor = 1 # 1 / (27000.**2 * np.pi * measurement['t_obs'])
+        return vec_acceptance * flux_factor
+
+    '''
+    binned_e corresponds to binned_E_validate, both are binnings of true_energy 
+    '''
+
+    vec_acceptance = generate_acceptance_correction(
+        vec_f_truth=vec_f,
+        binning=binning_energy,
+        measurement=vec_g,
+        logged_truth=False,
+    )
+
+    # Get the full energy and all that from teh gustav_werner
+    gustav_gamma = read_h5py("gamma_gustav_werner_corsika.hdf5", key="events")
+    print(list(gustav_gamma))
+
+    other_acceptance_vec = 0 # Get this from counting the raw counts of the truth vs the others
+
+
+    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=2000, random_state=1347)
+    #evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
 
