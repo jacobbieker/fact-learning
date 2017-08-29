@@ -48,7 +48,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
                 return np.inf
             else:
                 return -np.inf
-    for i in range(len(actual_observed)):
+    for i in range(actual_observed.shape[0]):
         if np.asarray(before_regularize).any() < 0 or np.asarray(f).any() < 0:
             if negative_log:
                 return np.inf
@@ -57,6 +57,7 @@ def log_likelihood(f, actual_observed, detector_matrix, tau, C, regularized=True
         #  - gi*ln(f(x)) - fi(x) * the rest Part One = ln(g_i!)
         part_one = 0  # math.log(np.math.factorial(actual_observed[i]))
         # Part Two = gi*ln((Af(x)_i)
+        haha = np.dot(detector_matrix, f)
         part_two = actual_observed[i] * np.log(np.dot(detector_matrix, f)[i])
         # Part Three = (Af(x)_i)
         part_three = (np.dot(detector_matrix, f)[i])

@@ -25,7 +25,7 @@ def plot_corner(unfolded_vector, energies=None, title=None):
                   quantiles=[0.16],
                   show_titles=True,
                   truths=energies)
-    plt.show()
+    plt.savefig("mcmc_output_" + title + ".png")
 
 
 def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, title=None):

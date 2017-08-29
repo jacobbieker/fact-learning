@@ -481,6 +481,15 @@ if __name__ == '__main__':
         vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
             linear_binning_model, vec_y, vec_x)
 
+        svd = ff.solution.SVDSolution()
+
+        svd.initialize(model=linear_binning_model, vec_g=vec_y)
+        vec_f_est, V_f_est = svd.fit()
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est, vec_b):
+            str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
+        print('{}'.format(str_1))
+
         normed_b = np.absolute(vec_b / sigma_b)
         normed_b_est = np.absolute(vec_b_est / sigma_b)
         order = np.argsort(normed_b)[::-1]
@@ -495,9 +504,9 @@ if __name__ == '__main__':
                 histtype='step')
 
     compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
-    compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
-    compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
-    compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
+    #compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
+    #compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
+    #compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
 
     linear_binning_model.initialize(digitized_obs=binned_g_validate,
                                     digitized_truth=binned_E_validate)
@@ -537,4 +546,7 @@ if __name__ == '__main__':
     ax.set_yscale("log", nonposy='clip')
     ax.legend(loc='best')
     fig.savefig('08_classic_binning.png')
+
+    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=8, num_used_steps=2000, random_state=1347)
+    evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
 
