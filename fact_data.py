@@ -442,12 +442,13 @@ if __name__ == '__main__':
     gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
     true_total_energy = gustav_gamma.get("energy").values
 
-    binning_energy = np.linspace(min(true_total_energy), max(true_total_energy), real_bins)
+    binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
 
     # binned_true_validate = tree_binning.digitize(true_total_energy)
     binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
 
     true_counted_bin = np.bincount(binned_E_true_validate)
+    true_counted_bin = true_counted_bin[1:]
     detector_true_counted_bin = np.bincount(binned_E_validate)
 
     print("Detector True Shape: " + str(detector_matrix_tree.shape))
@@ -459,14 +460,20 @@ if __name__ == '__main__':
     print("Binned E Validate Max:" + str(max(binned_E_validate)))
     print("Binned True Validate Max: " + str(max(binned_E_true_validate)))
 
+    #true_detector = np.histogram2d(true_counted_bin, detector_true_counted_bin)[0]
+    #true_detector2 = np.histogram2d(true_counted_bin, true_counted_bin)[0]
+
+    # Generated number / Total number in the bin = acceptance function
+    # So have the true number, generated number is the binned_g_validate
+    # Total real in teh detector is binned_E_energy
+    # So should just do detector_true_counted_bin / true_counted_bin
+
+    acceptance_vector_true = vec_f / true_counted_bin
+
     acceptance_difference = acceptance_vector_true / vec_acceptance
 
+    print("Acceptance Difference (True / Calculated): ")
     print(acceptance_difference)
-
-    print(max(binned_E_true_validate))
-    print(min(binned_E_true_validate))
-    print(max(true_total_energy))
-    print(min(true_total_energy))
 
     # A = np.histogram2d(x=)
 
@@ -479,8 +486,8 @@ if __name__ == '__main__':
     # Now can subtract from each to get the correctance factor, see if its the same as the vec_acceptance
 
 
-    other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
+    #other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
 
-    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=1,
-                                                 num_burn_steps=1, random_state=1347)
+    #mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=1,
+    #                                             num_burn_steps=1, random_state=1347)
     # evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
