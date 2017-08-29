@@ -1,4 +1,5 @@
 import matplotlib
+
 matplotlib.use('Agg')
 
 import funfolding as ff
@@ -73,13 +74,13 @@ Basically need digitized things to make it work correctly and to build the detec
 
 log = logging.getLogger("setup_pypet")
 
-#df = pd.read_hdf("gamma_precuts.hdf5")
-#print(list(df))
+# df = pd.read_hdf("gamma_precuts.hdf5")
+# print(list(df))
 print("+++++++++++++++++++++++++++++++++++++++++++")
 
 
-#mc_df = read_h5py("gamma_test.hdf5", key='events')
-#print(list(mc_df))
+# mc_df = read_h5py("gamma_test.hdf5", key='events')
+# print(list(mc_df))
 
 
 def load_gamma_subset(sourcefile,
@@ -322,6 +323,8 @@ if __name__ == '__main__':
 
     # Blobel Thing
     fig, ax = plt.subplots()
+
+
     def compare_binning_svd(binned_g, binned_E, title):
         linear_binning_model = ff.model.LinearModel()
 
@@ -359,10 +362,11 @@ if __name__ == '__main__':
         ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
                 histtype='step')
 
+
     compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
-    #compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
-    #compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
-    #compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
+    # compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
+    # compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
+    # compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
 
     linear_binning_model.initialize(digitized_obs=binned_g_validate,
                                     digitized_truth=binned_E_validate)
@@ -394,7 +398,6 @@ if __name__ == '__main__':
             label='Truth',
             histtype='step')
 
-
     ax.axhline(1.)
     ax.set_xlabel(r'Index $j$')
     ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
@@ -406,7 +409,6 @@ if __name__ == '__main__':
 
     def generate_acceptance_correction(vec_f_truth,
                                        binning,
-                                       measurement,
                                        logged_truth):
         e_min = 200
         e_max = 50000
@@ -414,14 +416,15 @@ if __name__ == '__main__':
         n_showers = 12000000
         if logged_truth:
             binning = np.power(10., binning)
-        normalization = (gamma + 1 ) / (e_max**(gamma + 1) - e_min**(gamma + 1))
-        corsika_cdf = lambda E: normalization * E**(gamma + 1) / (gamma + 1)
+        normalization = (gamma + 1) / (e_max ** (gamma + 1) - e_min ** (gamma + 1))
+        corsika_cdf = lambda E: normalization * E ** (gamma + 1) / (gamma + 1)
         vec_acceptance = np.zeros_like(vec_f_truth, dtype=float)
         for i, vec_i_detected in enumerate(vec_f_truth):
-            p_bin_i = corsika_cdf(binning[i +1]) - corsika_cdf(binning[i])
+            p_bin_i = corsika_cdf(binning[i + 1]) - corsika_cdf(binning[i])
             vec_acceptance[i] = p_bin_i * n_showers / vec_i_detected
-        flux_factor = 1 # 1 / (27000.**2 * np.pi * measurement['t_obs'])
+        flux_factor = 1  # 1 / (27000.**2 * np.pi * measurement['t_obs'])
         return vec_acceptance * flux_factor
+
 
     '''
     binned_e corresponds to binned_E_validate, both are binnings of true_energy 
@@ -430,17 +433,54 @@ if __name__ == '__main__':
     vec_acceptance = generate_acceptance_correction(
         vec_f_truth=vec_f,
         binning=binning_energy,
-        measurement=vec_g,
         logged_truth=False,
     )
 
+    print(vec_acceptance)
+
     # Get the full energy and all that from teh gustav_werner
-    gustav_gamma = read_h5py("gamma_gustav_werner_corsika.hdf5", key="events")
-    print(list(gustav_gamma))
+    gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
+    true_total_energy = gustav_gamma.get("energy").values
 
-    other_acceptance_vec = 0 # Get this from counting the raw counts of the truth vs the others
+    binning_energy = np.linspace(min(true_total_energy), max(true_total_energy), real_bins)
+
+    # binned_true_validate = tree_binning.digitize(true_total_energy)
+    binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
+
+    true_counted_bin = np.bincount(binned_E_true_validate)
+    detector_true_counted_bin = np.bincount(binned_E_validate)
+
+    print("Detector True Shape: " + str(detector_matrix_tree.shape))
+    print("Vec Acceptance Shape: " + str(vec_acceptance.shape))
+    print("Real Bins Value: " + str(real_bins))
+    print("True Counted Value: " + str(true_counted_bin.shape))
+    print("Detector True Counted Bin: " + str(detector_true_counted_bin))
+    print("Real Count:" + str(true_counted_bin))
+    print("Binned E Validate Max:" + str(max(binned_E_validate)))
+    print("Binned True Validate Max: " + str(max(binned_E_true_validate)))
+
+    acceptance_difference = acceptance_vector_true / vec_acceptance
+
+    print(acceptance_difference)
+
+    print(max(binned_E_true_validate))
+    print(min(binned_E_true_validate))
+    print(max(true_total_energy))
+    print(min(true_total_energy))
+
+    # A = np.histogram2d(x=)
+
+    # Get the bin counts and then add them in the histogram
+
+    # linear_binning_model = ff.model.LinearModel()
+
+    # true_total_detector = linear_binning_model.A
+
+    # Now can subtract from each to get the correctance factor, see if its the same as the vec_acceptance
 
 
-    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=2000, random_state=1347)
-    #evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
+    other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
 
+    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=1,
+                                                 num_burn_steps=1, random_state=1347)
+    # evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
