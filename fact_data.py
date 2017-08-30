@@ -18,7 +18,6 @@ from fact.analysis import split_on_off_source_independent
 from fact.analysis import split_on_off_source_dependent
 
 import logging
-from configparser import ConfigParser
 
 '''
 Parameters for the classic fitting of the gamma data, taken from the TRUEE settings
@@ -463,17 +462,35 @@ if __name__ == '__main__':
     #true_detector = np.histogram2d(true_counted_bin, detector_true_counted_bin)[0]
     #true_detector2 = np.histogram2d(true_counted_bin, true_counted_bin)[0]
 
-    # Generated number / Total number in the bin = acceptance function
+    # Generated number / Total number selected in the bin = acceptance function
     # So have the true number, generated number is the binned_g_validate
     # Total real in teh detector is binned_E_energy
-    # So should just do detector_true_counted_bin / true_counted_bin
+    # So should just do true_counted_bin / detector_true_counted_bin
 
-    acceptance_vector_true = vec_f / true_counted_bin
+    # vec_f includes only those selected events that really hit the detector
+    # So even if wrong, vec_acceptance should be the same value
+    # Instead it is between 1000 and 10 million times larger
+
+    acceptance_vector_true = true_counted_bin / vec_f
 
     acceptance_difference = acceptance_vector_true / vec_acceptance
 
     print("Acceptance Difference (True / Calculated): ")
     print(acceptance_difference)
+
+    # Plot the difference in the conversion back to true
+
+    true_acceptance_graphing_points = acceptance_vector_true * vec_f
+    calc_acceptance_graphing_points = vec_acceptance * vec_f
+    x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
+    plt.clf()
+    plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance")
+    #plt.step(x_acceptance_graphing_bins, true_counted_bin, where="mid", label="Raw True Acceptance")
+    plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance")
+    plt.legend(loc='best')
+    plt.yscale("log")
+    #plt.show()
+    plt.savefig("Acceptance_Functions_all.png")
 
     # A = np.histogram2d(x=)
 
@@ -488,6 +505,6 @@ if __name__ == '__main__':
 
     #other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
 
-    #mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_threads=1, num_used_steps=1,
-    #                                             num_burn_steps=1, random_state=1347)
-    # evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
+    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_walkers=100, num_threads=1, num_used_steps=100,
+                                                 num_burn_steps=100, random_state=1347)
+    #evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
