@@ -496,85 +496,134 @@ if __name__ == '__main__':
     #plt.show()
     plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing.png")
 
+    def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
+        model = ff.model.LinearModel()
+        model.initialize(digitized_obs=observed_energy,
+                         digitized_truth=true_energy)
 
-    model = ff.model.LinearModel()
-    model.initialize(digitized_obs=binned_g_test,
-                     digitized_truth=binned_E_test_validate)
+        vec_g, vec_f = model.generate_vectors(observed_energy, true_energy)
 
-    vec_g, vec_f = model.generate_vectors(binned_g_test, binned_E_test_validate)
+        print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
 
-    print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FRIST RUN)')
+        llh = ff.solution.StandardLLH(tau=tau,
+                                      vec_acceptance=acceptance_vector,
+                                      C='thikonov',
+                                      log_f=log_f,
+                                      neg_llh=False)
+        llh.initialize(vec_g=vec_g,
+                       model=model)
 
-    llh = ff.solution.StandardLLH(tau=0.9,
-                                  vec_acceptance=vec_acceptance,
-                                  C='thikonov',
-                                  log_f=True,
-                                  neg_llh=False)
-    llh.initialize(vec_g=vec_g,
-                   model=model)
+        sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=8000,
+                                               random_state=1337)
+        sol_mcmc.initialize(llh=llh, model=model)
+        sol_mcmc.set_x0_and_bounds()
+        vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
+        str_0 = 'unregularized:'
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
 
-    sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=4000,
-                                           random_state=1337)
-    sol_mcmc.initialize(llh=llh, model=model)
-    sol_mcmc.set_x0_and_bounds()
-    vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
-    str_0 = 'unregularized:'
-    str_1 = ''
-    for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
-        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-    print('{}\t{}'.format(str_0, str_1))
+        plt.clf()
+        evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=title)
 
-    plt.clf()
-    evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title="MCMC Unfolding Best Fit Logf Tau 0.9")
+        print('\nMinimize Solution:')
+        llh = ff.solution.StandardLLH(tau=None,
+                                      C='thikonov',
+                                      neg_llh=True)
+        llh.initialize(vec_g=vec_g,
+                       model=model)
 
-    print('\nMinimize Solution:')
-    llh = ff.solution.StandardLLH(tau=None,
-                                  C='thikonov',
-                                  neg_llh=True)
-    llh.initialize(vec_g=vec_g,
-                   model=model)
+        sol_mini = ff.solution.LLHSolutionMinimizer()
+        sol_mini.initialize(llh=llh, model=model)
+        sol_mini.set_x0_and_bounds()
 
-    sol_mini = ff.solution.LLHSolutionMinimizer()
-    sol_mini.initialize(llh=llh, model=model)
-    sol_mini.set_x0_and_bounds()
+        solution, V_f_est = sol_mini.fit(constrain_N=False)
+        vec_f_est_mini = solution.x
+        str_0 = 'unregularized:'
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
 
-    solution, V_f_est = sol_mini.fit(constrain_N=False)
-    vec_f_est_mini = solution.x
-    str_0 = 'unregularized:'
-    str_1 = ''
-    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-    print('{}\t{}'.format(str_0, str_1))
+        print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
+        solution, V_f_est = sol_mini.fit(constrain_N=True)
+        vec_f_est_mini = solution.x
+        str_0 = 'unregularized:'
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
 
-    print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
-    solution, V_f_est = sol_mini.fit(constrain_N=True)
-    vec_f_est_mini = solution.x
-    str_0 = 'unregularized:'
-    str_1 = ''
-    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-    print('{}\t{}'.format(str_0, str_1))
+        print('\nMinimize Solution (MCMC as seed):')
+        sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
+        solution, V_f_est = sol_mini.fit(constrain_N=False)
+        vec_f_est_mini = solution.x
+        str_0 = 'unregularized:'
+        str_1 = ''
+        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+        print('{}\t{}'.format(str_0, str_1))
 
-    print('\nMinimize Solution (MCMC as seed):')
-    sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
-    solution, V_f_est = sol_mini.fit(constrain_N=False)
-    vec_f_est_mini = solution.x
-    str_0 = 'unregularized:'
-    str_1 = ''
-    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-    print('{}\t{}'.format(str_0, str_1))
+        corner.corner(samples, truths=vec_f)
+        plt.savefig('corner_truth' + title + '.png')
+        print(np.sum(vec_f_est_mcmc))
 
-    corner.corner(samples, truths=vec_f)
-    plt.savefig('corner_truth.png')
-    print(np.sum(vec_f_est_mcmc))
+        plt.clf()
+        corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
+        plt.savefig('corner_mini' + title + '.png')
+        plt.clf()
+        corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
+        plt.savefig('corner_mcmc' + title + '.png')
 
-    plt.clf()
-    corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
-    plt.savefig('corner_mini.png')
-    plt.clf()
-    corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
-    plt.savefig('corner_mcmc.png')
+    test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000")
+
+    # Now have the tree binning response matrix, need classic binning ones
+
+    classic_binning = ff.binning.ClassicBinning(
+        bins=[real_bins, signal_bins],
+    )
+
+    classic_binning.initialize(detected_energy_tree)
+
+    digitized_classic = classic_binning.digitize(detected_energy_test)
+
+    linear_binning_model.initialize(
+        digitized_obs=digitized_classic,
+        digitized_truth=binned_E_test_validate
+    )
+
+    detector_matrix_classic = linear_binning_model.A
+
+    closest = classic_binning.merge(detected_energy_test,
+                                    min_samples=threshold,
+                                    max_bins=None,
+                                    mode='closest')
+    digitized_closest = closest.digitize(detected_energy_test)
+
+    lowest = classic_binning.merge(detected_energy_test,
+                                   min_samples=threshold,
+                                   max_bins=None,
+                                   mode='lowest')
+    digitized_lowest = lowest.digitize(detected_energy_test)
+
+    linear_binning_model.initialize(
+        digitized_obs=digitized_closest,
+        digitized_truth=binned_E_test_validate
+    )
+    detector_matrix_closest = linear_binning_model.A
+
+    linear_binning_model.initialize(
+        digitized_obs=digitized_lowest,
+        digitized_truth=binned_E_test_validate
+    )
+
+
+test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000")
+test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000")
+test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
+
+
 
 
 
