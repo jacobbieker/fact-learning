@@ -228,7 +228,9 @@ if __name__ == '__main__':
     binned_E_validate = np.digitize(real_energy_detector, binning_energy)
     binned_E_train = np.digitize(real_energy_tree, binning_detected)
 
-    threshold = 100
+    binned_E_test_validate = np.digitize(real_energy_test, binning_energy)
+
+    threshold = 1000
 
     tree_binning = ff.binning.TreeBinningSklearn(
         regression=False,
@@ -241,6 +243,7 @@ if __name__ == '__main__':
 
     tree_binning.fit(detected_energy_tree, binned_E_train)
     binned_g_validate = tree_binning.digitize(detected_energy_detector)
+    binned_g_test = tree_binning.digitize(detected_energy_test)
 
     linear_binning_model = ff.model.LinearModel()
     linear_binning_model.initialize(
@@ -498,6 +501,8 @@ if __name__ == '__main__':
     model.initialize(digitized_obs=binned_g_validate,
                      digitized_truth=binned_E_validate)
 
+    vec_g, vec_f = model.generate_vectors(binned_g_validate, binned_E_validate)
+
     print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FRIST RUN)')
 
     llh = ff.solution.StandardLLH(tau=None,
@@ -536,9 +541,40 @@ if __name__ == '__main__':
         str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
     print('{}\t{}'.format(str_0, str_1))
 
+    print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
+    solution, V_f_est = sol_mini.fit(constrain_N=True)
+    vec_f_est_mini = solution.x
+    str_0 = 'unregularized:'
+    str_1 = ''
+    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+    print('{}\t{}'.format(str_0, str_1))
+
+    print('\nMinimize Solution (MCMC as seed):')
+    sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
+    solution, V_f_est = sol_mini.fit(constrain_N=False)
+    vec_f_est_mini = solution.x
+    str_0 = 'unregularized:'
+    str_1 = ''
+    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+    print('{}\t{}'.format(str_0, str_1))
+
+    corner.corner(samples, truths=vec_f)
+    plt.savefig('corner_truth.png')
+    print(np.sum(vec_f_est_mcmc))
+
+    plt.clf()
+    corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
+    plt.savefig('corner_mini.png')
+    plt.clf()
+    corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
+    plt.savefig('corner_mcmc.png')
 
 
-    # A = np.histogram2d(x=)
+
+
+# A = np.histogram2d(x=)
 
     # Get the bin counts and then add them in the histogram
 

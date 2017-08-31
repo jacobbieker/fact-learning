@@ -47,7 +47,7 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, title=None):
     plt.legend(loc='best')
     #plt.xscale('log')
     plt.yscale('log')
-    plt.savefig("errors_mcmc_std.png")
+    plt.savefig("errors_mcmc_std_testing_" + str(title) + ".png")
 
 
 def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=None, num_bins=20, title=None):
