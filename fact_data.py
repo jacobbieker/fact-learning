@@ -265,6 +265,13 @@ if __name__ == '__main__':
 
     num_pulls_prim = int(on_data.shape[0] / 10000) - 2
 
+    list_of_mcmc_errors = []
+    list_of_acceptance_errors = []
+    list_of_tree_condition_numbers = []
+    list_of_classic_conditions = []
+    list_of_closest_conditions = []
+    list_of_lowest_conditions = []
+
     for run in range(1, num_pulls_prim):
         print(run)
 
@@ -396,6 +403,11 @@ if __name__ == '__main__':
         step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
         step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
         step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
+
+        list_of_tree_condition_numbers.append(1.0 / min(tree_singular_values))
+        list_of_classic_conditions.append(1.0 / min(classic_singular_values))
+        list_of_closest_conditions.append(1.0 / min(closest_singular_values))
+        list_of_lowest_conditions.append(1.0 / min(lowest_singular_values))
 
         plt.step(step_function_x_c, closest_singular_values, where="mid",
                  label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
@@ -566,6 +578,7 @@ if __name__ == '__main__':
 
         print("Acceptance Difference (True / Calculated): ")
         print(acceptance_difference)
+        list_of_acceptance_errors.append(acceptance_difference)
 
         # Plot the difference in the conversion back to true
 
@@ -610,6 +623,9 @@ if __name__ == '__main__':
             for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
             print('{}\t{}'.format(str_0, str_1))
+
+            list_of_mcmc_errors.append((vec_f_est_mcmc, sigma_vec_f, vec_f))
+            # Every third one is of the same type
 
             plt.clf()
             evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
@@ -692,6 +708,53 @@ if __name__ == '__main__':
 
         test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000_"+ str(run))
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000_"+ str(run))
+
+    # Now plotting the different ones for the multiple runs
+    print("Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(np.std(list_of_tree_condition_numbers)))
+    print("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(np.std(list_of_classic_conditions)))
+    print("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(np.std(list_of_closest_conditions)))
+    print("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(np.std(list_of_lowest_conditions)))
+
+    list_of_mcmc_errors = np.asarray(list_of_mcmc_errors)
+    tree_error_real = list_of_mcmc_errors[0::3]
+    lowest_error_real = list_of_mcmc_errors[1::3]
+    closest_error_real = list_of_mcmc_errors[2::3]
+
+    tree_error_real_lower1 = tree_error_real[0] - tree_error_real[1][0]
+    tree_error_real_upper1 = tree_error_real[1][1] - tree_error_real[0]
+
+    print("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(np.std(tree_error_real_lower1)))
+    print("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(np.std(tree_error_real_upper1)))
+
+    closest_error_real_lower = closest_error_real[0] - closest_error_real[1][0]
+    closest_error_real_upper = closest_error_real[1][1] - closest_error_real[0]
+
+    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(np.std(closest_error_real_lower)))
+    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(np.std(closest_error_real_upper)))
+
+    lowest_error_real_lower = lowest_error_real[0] - lowest_error_real[1][0]
+    lowest_error_real_upper = lowest_error_real[1][1] - lowest_error_real[0]
+
+    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(np.std(lowest_error_real_lower)))
+    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(np.std(lowest_error_real_upper)))
+
+    tree_raw_off = tree_error_real[0] / tree_error_real[2]
+    closest_raw_off = closest_error_real[0] / closest_error_real[2]
+    lowest_raw_off = lowest_error_real[0] / lowest_error_real[2]
+
+    x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+
+    plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning Difference")
+    plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
+    plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
+    plt.legend(los='best')
+    plt.title("Difference between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
+    plt.xlabel("Run Number")
+    plt.ylabel("log(Difference)")
+    plt.yscale('log')
+    plt.savefig("output/Multiple_Run_Difference.png")
+
+
     #test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
 
 
