@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 import corner
 import evaluate_unfolding
 import unfolding
+import os
 
 import multiprocessing
 
@@ -272,12 +273,16 @@ if __name__ == '__main__':
     list_of_closest_conditions = []
     list_of_lowest_conditions = []
 
+    pool = multiprocessing.Pool(os.cpu_count())
+
+
+
     for run in range(1, num_pulls_prim):
         print(run)
 
         # Get the "test" vs non test data
-        df_train = on_data[10000*run:]
-        df_test = on_data[:10000*run]
+        df_test = on_data[10000*(run-1):10000*run]
+        df_train = on_data[~on_data.isin(df_test)].dropna(how='all')
 
         # Split into 20 /80 mix for tree/detector matrix sets
         df_tree = df_train[int(0.8 * len(df_train)):]
@@ -629,6 +634,7 @@ if __name__ == '__main__':
 
             plt.clf()
             evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
+            plt.close()
 
             print('\nMinimize Solution:')
             llh = ff.solution.StandardLLH(tau=None,
@@ -708,6 +714,7 @@ if __name__ == '__main__':
 
         test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000_"+ str(run))
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000_"+ str(run))
+        plt.close()
 
     # Now plotting the different ones for the multiple runs
     print("Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(np.std(list_of_tree_condition_numbers)))
