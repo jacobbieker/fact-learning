@@ -170,6 +170,77 @@ def SVD_Unf(model, vec_y, vec_x):
     return vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, S_values[order]
 
 
+def split_mc_test_unfolding(n_pulls,
+                            n_events_mc,
+                            n_events_test,
+                            n_events_A=-1,
+                            n_events_binning='n_events_test',
+                            random_state=None):
+    if not isinstance(random_state, np.random.RandomState):
+        random_state = np.random.RandomState(random_state)
+
+    if isinstance(n_events_test, float):
+        if n_events_test > 0 and n_events_test < 1:
+            n_events_test = n_events_mc * n_events_test
+        else:
+            n_events_test = int(n_events_test)
+    elif not isinstance(n_events_test, int):
+        raise ValueError("'n_events_test' must be either None, int or float")
+
+    if n_events_A is None:
+        n_events_A = None
+    elif isinstance(n_events_A, float):
+        n_events_A = int(n_events_mc * n_events_A)
+    elif not isinstance(n_events_A, int):
+        raise ValueError("'n_events_A' must be either None, int or "
+                         "float")
+
+    if n_events_binning is None:
+        n_events_binning = 0
+    elif isinstance(n_events_binning, float):
+        n_events_binning = int(n_events_mc * n_events_binning)
+    elif isinstance(n_events_binning, str):
+        if n_events_binning.lower() == 'n_events_test':
+            n_events_binning = int(n_events_test)
+        else:
+            raise ValueError(
+                "'{}'' unknown option for 'n_events_binning'".format(
+                    n_events_binning))
+    else:
+        raise ValueError("'n_events_binning' must be either None, int or "
+                         "float")
+
+    if (n_events_test + n_events_binning + n_events_A) > n_events_mc:
+        raise ValueError("'n_events_test' + 'n_events_binning' + 'n_events_A' "
+                         "has to be smaller than n_events_mc")
+    n_events_test_pulls = np.random.poisson(n_events_test,
+                                            size=n_pulls)
+    idx = np.arange(n_events_mc)
+
+    for n_events_test_i in n_events_test_pulls:
+        np.random.shuffle(idx)
+        test_idx = np.sort(idx[:n_events_test_i])
+        train_idx = idx[n_events_test_i:]
+
+        if n_events_binning == 0:
+            if n_events_A == -1:
+                A_idx = np.sort(train_idx)
+            else:
+                A_slice = slice(None, n_events_A)
+                A_idx = np.sort(idx[A_slice])
+            yield test_idx, A_idx
+        else:
+            binning_slice = slice(None, n_events_binning)
+            binning_idx = np.sort(idx[binning_slice])
+            if n_events_A == -1:
+                A_slice = slice(n_events_binning, None)
+            else:
+                A_slice = slice(n_events_binning,
+                                n_events_binning + n_events_A)
+            A_idx = np.sort(idx[A_slice])
+            yield test_idx, A_idx, binning_idx
+
+
 if __name__ == '__main__':
     mc_data, on_data, off_data = load_gamma_subset("gamma_test.hdf5", theta2_cut=0.7, conf_cut=0.3, num_off_positions=5)
 
@@ -180,176 +251,222 @@ if __name__ == '__main__':
     print(off_data.shape)
     print(mc_data.shape)
 
-    # Get the "test" vs non test data
-    df_train = on_data[10000:]
-    df_test = on_data[:10000]
+    # Now call this 500 times to get the variance, etc... Change plotting as well
+    number_pulls = 500
+    num_events_mc = on_data.shape[0]-1
+    num_events_test = 10000
+    num_events_A = 0.1
+    random_state = 1347
 
-    # Split into 20 /80 mix for tree/detector matrix sets
-    df_detector = df_train[int(0.8 * len(df_train)):]
-    df_tree = df_train[:int(0.8 * len(df_train))]
+    testing_data = split_mc_test_unfolding(number_pulls, num_events_mc, num_events_test, num_events_A, random_state=random_state)
 
-    real_bins = 10
-    signal_bins = 16
+    # Generator so go through it calling the events each time
+    for run in testing_data:
+        print(run)
 
-    tree_obs = ["size",
-                "width",
-                "length",
-                "m3_trans",
-                "m3_long",
-                "conc_core",
-                "m3l",
-                "m3t",
-                "concentration_one_pixel",
-                "concentration_two_pixel",
-                "leakage",
-                "leakage2",
-                "conc_cog",
-                "num_islands",
-                "num_pixel_in_shower",
-                "ph_charge_shower_mean",
-                "ph_charge_shower_variance",
-                "ph_charge_shower_max"]
+        # Get the "test" vs non test data
+        df_train = on_data[max(run[1])]
+        df_test = on_data[max(run[2])]
 
-    # Now try it the other way of making the detector response with the digitized values
+        # Split into 20 /80 mix for tree/detector matrix sets
+        df_detector = df_train[int(0.8 * len(df_train)):]
+        df_tree = df_train[:int(0.8 * len(df_train))]
 
+        real_bins = 10
+        signal_bins = 16
 
-    detected_energy_test = df_test.get(tree_obs).values
-    real_energy_test = df_test.get("corsika_evt_header_total_energy").values
+        tree_obs = ["size",
+                    "width",
+                    "length",
+                    "m3_trans",
+                    "m3_long",
+                    "conc_core",
+                    "m3l",
+                    "m3t",
+                    "concentration_one_pixel",
+                    "concentration_two_pixel",
+                    "leakage",
+                    "leakage2",
+                    "conc_cog",
+                    "num_islands",
+                    "num_pixel_in_shower",
+                    "ph_charge_shower_mean",
+                    "ph_charge_shower_variance",
+                    "ph_charge_shower_max"]
 
-    detected_energy_tree = df_tree.get(tree_obs).values
-    real_energy_tree = df_tree.get("corsika_evt_header_total_energy").values
-
-    detected_energy_detector = df_detector.get(tree_obs).values
-    real_energy_detector = df_detector.get("corsika_evt_header_total_energy").values
-
-    binning_energy = np.linspace(2.3, 4.7, real_bins)
-    binning_detected = np.linspace(2.3, 4.7, signal_bins)
-
-    binned_E_validate = np.digitize(real_energy_detector, binning_energy)
-    binned_E_train = np.digitize(real_energy_tree, binning_detected)
-
-    binned_E_test_validate = np.digitize(real_energy_test, binning_energy)
-
-    threshold = 1000
-
-    tree_binning = ff.binning.TreeBinningSklearn(
-        regression=False,
-        max_features=None,
-        min_samples_split=2,
-        max_depth=None,
-        min_samples_leaf=threshold,
-        max_leaf_nodes=None,
-        random_state=1337)
-
-    tree_binning.fit(detected_energy_tree, binned_E_train)
-    binned_g_validate = tree_binning.digitize(detected_energy_detector)
-    binned_g_test = tree_binning.digitize(detected_energy_test)
-
-    linear_binning_model = ff.model.LinearModel()
-    linear_binning_model.initialize(
-        digitized_obs=binned_g_validate,
-        digitized_truth=binned_E_validate
-    )
-
-    detector_matrix_tree = linear_binning_model.A
-
-    # Now have the tree binning response matrix, need classic binning ones
-
-    classic_binning = ff.binning.ClassicBinning(
-        bins=[real_bins, signal_bins],
-    )
-    # testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
-    classic_binning.initialize(detected_energy_tree)
-
-    digitized_classic = classic_binning.digitize(detected_energy_detector)
-
-    linear_binning_model.initialize(
-        digitized_obs=digitized_classic,
-        digitized_truth=binned_E_validate
-    )
-
-    detector_matrix_classic = linear_binning_model.A
-
-    closest = classic_binning.merge(detected_energy_detector,
-                                    min_samples=threshold,
-                                    max_bins=None,
-                                    mode='closest')
-    digitized_closest = closest.digitize(detected_energy_detector)
-
-    lowest = classic_binning.merge(detected_energy_detector,
-                                   min_samples=threshold,
-                                   max_bins=None,
-                                   mode='lowest')
-    digitized_lowest = lowest.digitize(detected_energy_detector)
-
-    linear_binning_model.initialize(
-        digitized_obs=digitized_closest,
-        digitized_truth=binned_E_validate
-    )
-    detector_matrix_closest = linear_binning_model.A
-
-    linear_binning_model.initialize(
-        digitized_obs=digitized_lowest,
-        digitized_truth=binned_E_validate
-    )
-    detector_matrix_lowest = linear_binning_model.A
-
-    u, tree_singular_values, v = np.linalg.svd(detector_matrix_tree)
-    u, closest_singular_values, v = np.linalg.svd(detector_matrix_closest)
-    u, lowest_singular_values, v = np.linalg.svd(detector_matrix_lowest)
-    u, classic_singular_values, v = np.linalg.svd(detector_matrix_classic)
-
-    tree_singular_values = tree_singular_values / max(tree_singular_values)
-    closest_singular_values = closest_singular_values / max(closest_singular_values)
-    lowest_singular_values = lowest_singular_values / max(lowest_singular_values)
-    classic_singular_values = classic_singular_values / max(classic_singular_values)
-
-    step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0])
-    step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
-    step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
-    step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
-
-    plt.step(step_function_x_c, closest_singular_values, where="mid",
-             label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
-    plt.step(step_function_x_l, lowest_singular_values, where="mid",
-             label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
-    plt.step(step_function_x_t, tree_singular_values, where="mid",
-             label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
-    plt.step(step_function_x_class, classic_singular_values, where="mid",
-             label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
-    plt.xlabel("Singular Value Number")
-    plt.legend(loc="best")
-    plt.yscale('log')
-    plt.savefig("Singular_Values.png")
-    plt.clf()
-
-    # Blobel Thing
-    fig, ax = plt.subplots()
+        # Now try it the other way of making the detector response with the digitized values
 
 
-    def compare_binning_svd(binned_g, binned_E, title):
+        detected_energy_test = df_test.get(tree_obs).values
+        real_energy_test = df_test.get("corsika_evt_header_total_energy").values
+
+        detected_energy_tree = df_tree.get(tree_obs).values
+        real_energy_tree = df_tree.get("corsika_evt_header_total_energy").values
+
+        detected_energy_detector = df_detector.get(tree_obs).values
+        real_energy_detector = df_detector.get("corsika_evt_header_total_energy").values
+
+        binning_energy = np.linspace(2.3, 4.7, real_bins)
+        binning_detected = np.linspace(2.3, 4.7, signal_bins)
+
+        binned_E_validate = np.digitize(real_energy_detector, binning_energy)
+        binned_E_train = np.digitize(real_energy_tree, binning_detected)
+
+        binned_E_test_validate = np.digitize(real_energy_test, binning_energy)
+
+        threshold = 1000
+
+        tree_binning = ff.binning.TreeBinningSklearn(
+            regression=False,
+            max_features=None,
+            min_samples_split=2,
+            max_depth=None,
+            min_samples_leaf=threshold,
+            max_leaf_nodes=None,
+            random_state=1337)
+
+        tree_binning.fit(detected_energy_tree, binned_E_train)
+        binned_g_validate = tree_binning.digitize(detected_energy_detector)
+        binned_g_test = tree_binning.digitize(detected_energy_test)
+
         linear_binning_model = ff.model.LinearModel()
+        linear_binning_model.initialize(
+            digitized_obs=binned_g_validate,
+            digitized_truth=binned_E_validate
+        )
 
-        # binned_g_validate = binned_g_validate[:10000]
-        # binned_E_validate = binned_E_validate[:10000]
-        linear_binning_model.initialize(digitized_obs=binned_g,
-                                        digitized_truth=binned_E)
+        detector_matrix_tree = linear_binning_model.A
+
+        # Now have the tree binning response matrix, need classic binning ones
+
+        classic_binning = ff.binning.ClassicBinning(
+            bins=[real_bins, signal_bins],
+        )
+        # testing_dataset = np.asarray([detected_energy_tree, real_energy_tree])
+        classic_binning.initialize(detected_energy_tree)
+
+        digitized_classic = classic_binning.digitize(detected_energy_detector)
+
+        linear_binning_model.initialize(
+            digitized_obs=digitized_classic,
+            digitized_truth=binned_E_validate
+        )
+
+        detector_matrix_classic = linear_binning_model.A
+
+        closest = classic_binning.merge(detected_energy_detector,
+                                        min_samples=threshold,
+                                        max_bins=None,
+                                        mode='closest')
+        digitized_closest = closest.digitize(detected_energy_detector)
+
+        lowest = classic_binning.merge(detected_energy_detector,
+                                       min_samples=threshold,
+                                       max_bins=None,
+                                       mode='lowest')
+        digitized_lowest = lowest.digitize(detected_energy_detector)
+
+        linear_binning_model.initialize(
+            digitized_obs=digitized_closest,
+            digitized_truth=binned_E_validate
+        )
+        detector_matrix_closest = linear_binning_model.A
+
+        linear_binning_model.initialize(
+            digitized_obs=digitized_lowest,
+            digitized_truth=binned_E_validate
+        )
+        detector_matrix_lowest = linear_binning_model.A
+
+        u, tree_singular_values, v = np.linalg.svd(detector_matrix_tree)
+        u, closest_singular_values, v = np.linalg.svd(detector_matrix_closest)
+        u, lowest_singular_values, v = np.linalg.svd(detector_matrix_lowest)
+        u, classic_singular_values, v = np.linalg.svd(detector_matrix_classic)
+
+        tree_singular_values = tree_singular_values / max(tree_singular_values)
+        closest_singular_values = closest_singular_values / max(closest_singular_values)
+        lowest_singular_values = lowest_singular_values / max(lowest_singular_values)
+        classic_singular_values = classic_singular_values / max(classic_singular_values)
+
+        step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0])
+        step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
+        step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
+        step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
+
+        plt.step(step_function_x_c, closest_singular_values, where="mid",
+                 label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
+        plt.step(step_function_x_l, lowest_singular_values, where="mid",
+                 label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
+        plt.step(step_function_x_t, tree_singular_values, where="mid",
+                 label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
+        plt.step(step_function_x_class, classic_singular_values, where="mid",
+                 label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
+        plt.xlabel("Singular Value Number")
+        plt.legend(loc="best")
+        plt.yscale('log')
+        plt.savefig("Singular_Values.png")
+        plt.clf()
+
+        # Blobel Thing
+        fig, ax = plt.subplots()
+
+
+        def compare_binning_svd(binned_g, binned_E, title):
+            linear_binning_model = ff.model.LinearModel()
+
+            # binned_g_validate = binned_g_validate[:10000]
+            # binned_E_validate = binned_E_validate[:10000]
+            linear_binning_model.initialize(digitized_obs=binned_g,
+                                            digitized_truth=binned_E)
+
+            vec_y, vec_x = linear_binning_model.generate_vectors(
+                digitized_obs=binned_g,
+                digitized_truth=binned_E)
+
+            vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
+                linear_binning_model, vec_y, vec_x)
+
+            svd = ff.solution.SVDSolution()
+
+            svd.initialize(model=linear_binning_model, vec_g=vec_y)
+            vec_f_est, V_f_est = svd.fit()
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est, vec_b):
+                str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
+            print('{}'.format(str_1))
+
+            normed_b = np.absolute(vec_b / sigma_b)
+            normed_b_est = np.absolute(vec_b_est / sigma_b)
+            order = np.argsort(normed_b)[::-1]
+
+            normed_b = normed_b[order]
+            normed_b_est = normed_b_est[order]
+            binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
+            bin_centers = (binning[1:] + binning[:-1]) / 2
+            bin_width = (binning[1:] - binning[:-1]) / 2
+
+            ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
+                    histtype='step')
+
+
+        compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
+        # compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
+        # compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
+        # compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
+
+        linear_binning_model.initialize(digitized_obs=binned_g_validate,
+                                        digitized_truth=binned_E_validate)
+        # binned_E_validate += 1
+        vec_g, vec_f = linear_binning_model.generate_vectors(binned_g_validate, binned_E_validate)
+
+        # Get the V. Blobel plot for the measured distribution
 
         vec_y, vec_x = linear_binning_model.generate_vectors(
-            digitized_obs=binned_g,
-            digitized_truth=binned_E)
+            digitized_obs=binned_g_validate,
+            digitized_truth=binned_E_validate)
 
         vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
             linear_binning_model, vec_y, vec_x)
-
-        svd = ff.solution.SVDSolution()
-
-        svd.initialize(model=linear_binning_model, vec_g=vec_y)
-        vec_f_est, V_f_est = svd.fit()
-        str_1 = ''
-        for f_i_est, f_i in zip(vec_f_est, vec_b):
-            str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
-        print('{}'.format(str_1))
 
         normed_b = np.absolute(vec_b / sigma_b)
         normed_b_est = np.absolute(vec_b_est / sigma_b)
@@ -361,267 +478,218 @@ if __name__ == '__main__':
         bin_centers = (binning[1:] + binning[:-1]) / 2
         bin_width = (binning[1:] - binning[:-1]) / 2
 
-        ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
+        ax.hist(bin_centers,
+                bins=binning,
+                weights=normed_b,
+                label='Truth',
                 histtype='step')
 
-
-    compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
-    # compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
-    # compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
-    # compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
-
-    linear_binning_model.initialize(digitized_obs=binned_g_validate,
-                                    digitized_truth=binned_E_validate)
-    # binned_E_validate += 1
-    vec_g, vec_f = linear_binning_model.generate_vectors(binned_g_validate, binned_E_validate)
-
-    # Get the V. Blobel plot for the measured distribution
-
-    vec_y, vec_x = linear_binning_model.generate_vectors(
-        digitized_obs=binned_g_validate,
-        digitized_truth=binned_E_validate)
-
-    vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
-        linear_binning_model, vec_y, vec_x)
-
-    normed_b = np.absolute(vec_b / sigma_b)
-    normed_b_est = np.absolute(vec_b_est / sigma_b)
-    order = np.argsort(normed_b)[::-1]
-
-    normed_b = normed_b[order]
-    normed_b_est = normed_b_est[order]
-    binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
-    bin_centers = (binning[1:] + binning[:-1]) / 2
-    bin_width = (binning[1:] - binning[:-1]) / 2
-
-    ax.hist(bin_centers,
-            bins=binning,
-            weights=normed_b,
-            label='Truth',
-            histtype='step')
-
-    ax.axhline(1.)
-    ax.set_xlabel(r'Index $j$')
-    ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
-    ax.set_ylim([1e-2, 1e3])
-    ax.set_yscale("log", nonposy='clip')
-    ax.legend(loc='best')
-    fig.savefig('08_classic_binning.png')
+        ax.axhline(1.)
+        ax.set_xlabel(r'Index $j$')
+        ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
+        ax.set_ylim([1e-2, 1e3])
+        ax.set_yscale("log", nonposy='clip')
+        ax.legend(loc='best')
+        fig.savefig('08_classic_binning.png')
 
 
-    def generate_acceptance_correction(vec_f_truth,
-                                       binning,
-                                       logged_truth):
-        e_min = 200
-        e_max = 50000
-        gamma = -2.7
-        n_showers = 12000000
-        if logged_truth:
-            binning = np.power(10., binning)
-        normalization = (gamma + 1) / (e_max ** (gamma + 1) - e_min ** (gamma + 1))
-        corsika_cdf = lambda E: normalization * E ** (gamma + 1) / (gamma + 1)
-        vec_acceptance = np.zeros_like(vec_f_truth, dtype=float)
-        for i, vec_i_detected in enumerate(vec_f_truth):
-            p_bin_i = corsika_cdf(binning[i + 1]) - corsika_cdf(binning[i])
-            vec_acceptance[i] = p_bin_i * n_showers / vec_i_detected
-        flux_factor = 1  # 1 / (27000.**2 * np.pi * measurement['t_obs'])
-        return vec_acceptance * flux_factor
+        def generate_acceptance_correction(vec_f_truth,
+                                           binning,
+                                           logged_truth):
+            e_min = 200
+            e_max = 50000
+            gamma = -2.7
+            n_showers = 12000000
+            if logged_truth:
+                binning = np.power(10., binning)
+            normalization = (gamma + 1) / (e_max ** (gamma + 1) - e_min ** (gamma + 1))
+            corsika_cdf = lambda E: normalization * E ** (gamma + 1) / (gamma + 1)
+            vec_acceptance = np.zeros_like(vec_f_truth, dtype=float)
+            for i, vec_i_detected in enumerate(vec_f_truth):
+                p_bin_i = corsika_cdf(binning[i + 1]) - corsika_cdf(binning[i])
+                vec_acceptance[i] = p_bin_i * n_showers / vec_i_detected
+            flux_factor = 1  # 1 / (27000.**2 * np.pi * measurement['t_obs'])
+            return vec_acceptance * flux_factor
 
 
-    '''
-    binned_e corresponds to binned_E_validate, both are binnings of true_energy 
-    '''
+        '''
+        binned_e corresponds to binned_E_validate, both are binnings of true_energy 
+        '''
 
-    vec_acceptance = generate_acceptance_correction(
-        vec_f_truth=vec_f,
-        binning=binning_energy,
-        logged_truth=True,
-    )
+        vec_acceptance = generate_acceptance_correction(
+            vec_f_truth=vec_f,
+            binning=binning_energy,
+            logged_truth=True,
+        )
 
-    print(vec_acceptance)
+        print(vec_acceptance)
 
-    # Get the full energy and all that from teh gustav_werner
-    gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
-    true_total_energy = np.log10(gustav_gamma.get("energy").values)
+        # Get the full energy and all that from teh gustav_werner
+        gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
+        true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
-    #binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
+        #binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
 
-    # binned_true_validate = tree_binning.digitize(true_total_energy)
-    binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
+        # binned_true_validate = tree_binning.digitize(true_total_energy)
+        binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
 
-    true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
-    detector_true_counted_bin = np.bincount(binned_E_validate)
+        true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
+        detector_true_counted_bin = np.bincount(binned_E_validate)
 
-    print("Detector True Shape: " + str(detector_matrix_tree.shape))
-    print("Vec Acceptance Shape: " + str(vec_acceptance.shape))
-    print("Real Bins Value: " + str(real_bins))
-    print("True Counted Value: " + str(true_counted_bin.shape))
-    print("Detector True Counted Bin: " + str(detector_true_counted_bin))
-    print("Real Count:" + str(true_counted_bin))
-    print("Binned E Validate Max:" + str(max(binned_E_validate)))
-    print("Binned True Validate Max: " + str(max(binned_E_true_validate)))
+        print("Detector True Shape: " + str(detector_matrix_tree.shape))
+        print("Vec Acceptance Shape: " + str(vec_acceptance.shape))
+        print("Real Bins Value: " + str(real_bins))
+        print("True Counted Value: " + str(true_counted_bin.shape))
+        print("Detector True Counted Bin: " + str(detector_true_counted_bin))
+        print("Real Count:" + str(true_counted_bin))
+        print("Binned E Validate Max:" + str(max(binned_E_validate)))
+        print("Binned True Validate Max: " + str(max(binned_E_true_validate)))
 
-    #true_detector = np.histogram2d(true_counted_bin, detector_true_counted_bin)[0]
-    #true_detector2 = np.histogram2d(true_counted_bin, true_counted_bin)[0]
+        #true_detector = np.histogram2d(true_counted_bin, detector_true_counted_bin)[0]
+        #true_detector2 = np.histogram2d(true_counted_bin, true_counted_bin)[0]
 
-    # Generated number / Total number selected in the bin = acceptance function
-    # So have the true number, generated number is the binned_g_validate
-    # Total real in teh detector is binned_E_energy
-    # So should just do true_counted_bin / detector_true_counted_bin
+        # Generated number / Total number selected in the bin = acceptance function
+        # So have the true number, generated number is the binned_g_validate
+        # Total real in teh detector is binned_E_energy
+        # So should just do true_counted_bin / detector_true_counted_bin
 
-    # vec_f includes only those selected events that really hit the detector
-    # So even if wrong, vec_acceptance should be the same value
-    # Instead it is between 1000 and 10 million times larger
+        # vec_f includes only those selected events that really hit the detector
+        # So even if wrong, vec_acceptance should be the same value
+        # Instead it is between 1000 and 10 million times larger
 
-    acceptance_vector_true = true_counted_bin / vec_f
+        acceptance_vector_true = true_counted_bin / vec_f
 
-    acceptance_difference = acceptance_vector_true / vec_acceptance
+        acceptance_difference = acceptance_vector_true / vec_acceptance
 
-    print("Acceptance Difference (True / Calculated): ")
-    print(acceptance_difference)
+        print("Acceptance Difference (True / Calculated): ")
+        print(acceptance_difference)
 
-    # Plot the difference in the conversion back to true
+        # Plot the difference in the conversion back to true
 
-    true_acceptance_graphing_points = acceptance_vector_true * vec_f
-    calc_acceptance_graphing_points = vec_acceptance * vec_f
-    x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
-    plt.clf()
-    plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance * vec_f")
-    plt.step(x_acceptance_graphing_bins, acceptance_vector_true, where="mid", label="Raw True Acceptance")
-    plt.step(x_acceptance_graphing_bins, vec_acceptance, where="mid", label="Raw Calc Acceptance")
-    plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance * vec_f")
-    plt.step(x_acceptance_graphing_bins, vec_f, where="mid", label="vec_f")
-    plt.legend(loc='best')
-    plt.yscale("log")
-    #plt.show()
-    plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing.png")
-
-    def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
-        model = ff.model.LinearModel()
-        model.initialize(digitized_obs=observed_energy,
-                         digitized_truth=true_energy)
-
-        vec_g, vec_f = model.generate_vectors(observed_energy, true_energy)
-
-        print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
-
-        llh = ff.solution.StandardLLH(tau=tau,
-                                      vec_acceptance=acceptance_vector,
-                                      C='thikonov',
-                                      log_f=log_f,
-                                      neg_llh=False)
-        llh.initialize(vec_g=vec_g,
-                       model=model)
-
-        sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=8000,
-                                               random_state=1337)
-        sol_mcmc.initialize(llh=llh, model=model)
-        sol_mcmc.set_x0_and_bounds()
-        vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
-        str_0 = 'unregularized:'
-        str_1 = ''
-        for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
-            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-        print('{}\t{}'.format(str_0, str_1))
-
+        true_acceptance_graphing_points = acceptance_vector_true * vec_f
+        calc_acceptance_graphing_points = vec_acceptance * vec_f
+        x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
         plt.clf()
-        evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=title)
+        plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance * vec_f")
+        plt.step(x_acceptance_graphing_bins, acceptance_vector_true, where="mid", label="Raw True Acceptance")
+        plt.step(x_acceptance_graphing_bins, vec_acceptance, where="mid", label="Raw Calc Acceptance")
+        plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance * vec_f")
+        plt.step(x_acceptance_graphing_bins, vec_f, where="mid", label="vec_f")
+        plt.legend(loc='best')
+        plt.yscale("log")
+        #plt.show()
+        plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing.png")
 
-        print('\nMinimize Solution:')
-        llh = ff.solution.StandardLLH(tau=None,
-                                      C='thikonov',
-                                      neg_llh=True)
-        llh.initialize(vec_g=vec_g,
-                       model=model)
+        def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
+            model = ff.model.LinearModel()
+            model.initialize(digitized_obs=observed_energy,
+                             digitized_truth=true_energy)
 
-        sol_mini = ff.solution.LLHSolutionMinimizer()
-        sol_mini.initialize(llh=llh, model=model)
-        sol_mini.set_x0_and_bounds()
+            vec_g, vec_f = model.generate_vectors(observed_energy, true_energy)
 
-        solution, V_f_est = sol_mini.fit(constrain_N=False)
-        vec_f_est_mini = solution.x
-        str_0 = 'unregularized:'
-        str_1 = ''
-        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-        print('{}\t{}'.format(str_0, str_1))
+            print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
 
-        print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
-        solution, V_f_est = sol_mini.fit(constrain_N=True)
-        vec_f_est_mini = solution.x
-        str_0 = 'unregularized:'
-        str_1 = ''
-        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-        print('{}\t{}'.format(str_0, str_1))
+            llh = ff.solution.StandardLLH(tau=tau,
+                                          vec_acceptance=acceptance_vector,
+                                          C='thikonov',
+                                          log_f=log_f,
+                                          neg_llh=False)
+            llh.initialize(vec_g=vec_g,
+                           model=model)
 
-        print('\nMinimize Solution (MCMC as seed):')
-        sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
-        solution, V_f_est = sol_mini.fit(constrain_N=False)
-        vec_f_est_mini = solution.x
-        str_0 = 'unregularized:'
-        str_1 = ''
-        for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-            str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-        print('{}\t{}'.format(str_0, str_1))
+            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=8000,
+                                                   random_state=1337)
+            sol_mcmc.initialize(llh=llh, model=model)
+            sol_mcmc.set_x0_and_bounds()
+            vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
+            str_0 = 'unregularized:'
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
 
-        corner.corner(samples, truths=vec_f)
-        plt.savefig('corner_truth' + title + '.png')
-        print(np.sum(vec_f_est_mcmc))
+            plt.clf()
+            evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=title)
 
-        plt.clf()
-        corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
-        plt.savefig('corner_mini' + title + '.png')
-        plt.clf()
-        corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
-        plt.savefig('corner_mcmc' + title + '.png')
+            print('\nMinimize Solution:')
+            llh = ff.solution.StandardLLH(tau=None,
+                                          C='thikonov',
+                                          neg_llh=True)
+            llh.initialize(vec_g=vec_g,
+                           model=model)
 
-    test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000")
+            sol_mini = ff.solution.LLHSolutionMinimizer()
+            sol_mini.initialize(llh=llh, model=model)
+            sol_mini.set_x0_and_bounds()
 
-    # Now have the tree binning response matrix, need classic binning ones
+            solution, V_f_est = sol_mini.fit(constrain_N=False)
+            vec_f_est_mini = solution.x
+            str_0 = 'unregularized:'
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
 
-    classic_binning = ff.binning.ClassicBinning(
-        bins=[real_bins, signal_bins],
-    )
+            print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
+            solution, V_f_est = sol_mini.fit(constrain_N=True)
+            vec_f_est_mini = solution.x
+            str_0 = 'unregularized:'
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
 
-    classic_binning.initialize(detected_energy_tree)
+            print('\nMinimize Solution (MCMC as seed):')
+            sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
+            solution, V_f_est = sol_mini.fit(constrain_N=False)
+            vec_f_est_mini = solution.x
+            str_0 = 'unregularized:'
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
 
-    digitized_classic = classic_binning.digitize(detected_energy_test)
+            '''
+            corner.corner(samples, truths=vec_f)
+            plt.savefig('corner_truth' + title + '.png')
+            print(np.sum(vec_f_est_mcmc))
+    
+            plt.clf()
+            corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
+            plt.savefig('corner_mini' + title + '.png')
+            plt.clf()
+            corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
+            plt.savefig('corner_mcmc' + title + '.png')
+            plt.clf()
+            '''
 
-    linear_binning_model.initialize(
-        digitized_obs=digitized_classic,
-        digitized_truth=binned_E_test_validate
-    )
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000")
 
-    detector_matrix_classic = linear_binning_model.A
+        # Now have the tree binning response matrix, need classic binning ones
 
-    closest = classic_binning.merge(detected_energy_test,
-                                    min_samples=threshold,
-                                    max_bins=None,
-                                    mode='closest')
-    digitized_closest = closest.digitize(detected_energy_test)
+        classic_binning = ff.binning.ClassicBinning(
+            bins=[real_bins, signal_bins],
+        )
 
-    lowest = classic_binning.merge(detected_energy_test,
-                                   min_samples=threshold,
-                                   max_bins=None,
-                                   mode='lowest')
-    digitized_lowest = lowest.digitize(detected_energy_test)
+        classic_binning.initialize(detected_energy_tree)
 
-    linear_binning_model.initialize(
-        digitized_obs=digitized_closest,
-        digitized_truth=binned_E_test_validate
-    )
-    detector_matrix_closest = linear_binning_model.A
+        digitized_classic = classic_binning.digitize(detected_energy_test)
 
-    linear_binning_model.initialize(
-        digitized_obs=digitized_lowest,
-        digitized_truth=binned_E_test_validate
-    )
+        closest = classic_binning.merge(detected_energy_test,
+                                        min_samples=threshold,
+                                        max_bins=None,
+                                        mode='closest')
+        digitized_closest = closest.digitize(detected_energy_test)
 
+        lowest = classic_binning.merge(detected_energy_test,
+                                       min_samples=threshold,
+                                       max_bins=None,
+                                       mode='lowest')
+        digitized_lowest = lowest.digitize(detected_energy_test)
 
-test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000")
-test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000")
-test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000")
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000")
+    #test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
 
 
 
