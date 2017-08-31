@@ -743,7 +743,7 @@ if __name__ == '__main__':
     lowest_raw_off = lowest_error_real[0] / lowest_error_real[2]
 
     x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
-
+    plt.clf()
     plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning Difference")
     plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
     plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
