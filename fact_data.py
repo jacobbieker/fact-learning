@@ -246,6 +246,7 @@ if __name__ == '__main__':
 
     # 0's are off
     on_data = convert_to_log(on_data)
+    gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
 
     print(on_data.shape)
     print(off_data.shape)
@@ -261,16 +262,19 @@ if __name__ == '__main__':
     testing_data = split_mc_test_unfolding(number_pulls, num_events_mc, num_events_test, num_events_A, random_state=random_state)
 
     # Generator so go through it calling the events each time
-    for run in testing_data:
+
+    num_pulls_prim = int(on_data.shape[0] / 10000) - 2
+
+    for run in range(1, num_pulls_prim):
         print(run)
 
         # Get the "test" vs non test data
-        df_train = on_data[max(run[1])]
-        df_test = on_data[max(run[2])]
+        df_train = on_data[10000*run:]
+        df_test = on_data[:10000*run]
 
         # Split into 20 /80 mix for tree/detector matrix sets
-        df_detector = df_train[int(0.8 * len(df_train)):]
-        df_tree = df_train[:int(0.8 * len(df_train))]
+        df_tree = df_train[int(0.8 * len(df_train)):]
+        df_detector = df_train[:int(0.8 * len(df_train))]
 
         real_bins = 10
         signal_bins = 16
@@ -404,7 +408,7 @@ if __name__ == '__main__':
         plt.xlabel("Singular Value Number")
         plt.legend(loc="best")
         plt.yscale('log')
-        plt.savefig("Singular_Values.png")
+        plt.savefig("output/Singular_Values_" + str(run) + ".png")
         plt.clf()
 
         # Blobel Thing
@@ -490,7 +494,7 @@ if __name__ == '__main__':
         ax.set_ylim([1e-2, 1e3])
         ax.set_yscale("log", nonposy='clip')
         ax.legend(loc='best')
-        fig.savefig('08_classic_binning.png')
+        fig.savefig('output/08_classic_binning_' + str(run) + '.png')
 
 
         def generate_acceptance_correction(vec_f_truth,
@@ -525,7 +529,6 @@ if __name__ == '__main__':
         print(vec_acceptance)
 
         # Get the full energy and all that from teh gustav_werner
-        gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
         true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
         #binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
@@ -578,7 +581,7 @@ if __name__ == '__main__':
         plt.legend(loc='best')
         plt.yscale("log")
         #plt.show()
-        plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing.png")
+        plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing_" + str(run) + ".png")
 
         def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
             model = ff.model.LinearModel()
@@ -609,7 +612,7 @@ if __name__ == '__main__':
             print('{}\t{}'.format(str_0, str_1))
 
             plt.clf()
-            evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=title)
+            evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
 
             print('\nMinimize Solution:')
             llh = ff.solution.StandardLLH(tau=None,
@@ -663,7 +666,7 @@ if __name__ == '__main__':
             plt.clf()
             '''
 
-        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000")
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000_" + str(run))
 
         # Now have the tree binning response matrix, need classic binning ones
 
@@ -687,8 +690,8 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
 
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000")
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000")
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000_"+ str(run))
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000_"+ str(run))
     #test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
 
 
