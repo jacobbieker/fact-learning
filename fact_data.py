@@ -498,20 +498,22 @@ if __name__ == '__main__':
 
 
     model = ff.model.LinearModel()
-    model.initialize(digitized_obs=binned_g_validate,
-                     digitized_truth=binned_E_validate)
+    model.initialize(digitized_obs=binned_g_test,
+                     digitized_truth=binned_E_test_validate)
 
-    vec_g, vec_f = model.generate_vectors(binned_g_validate, binned_E_validate)
+    vec_g, vec_f = model.generate_vectors(binned_g_test, binned_E_test_validate)
 
     print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FRIST RUN)')
 
-    llh = ff.solution.StandardLLH(tau=None,
+    llh = ff.solution.StandardLLH(tau=0.9,
+                                  vec_acceptance=vec_acceptance,
                                   C='thikonov',
+                                  log_f=True,
                                   neg_llh=False)
     llh.initialize(vec_g=vec_g,
                    model=model)
 
-    sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
+    sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=4000,
                                            random_state=1337)
     sol_mcmc.initialize(llh=llh, model=model)
     sol_mcmc.set_x0_and_bounds()
@@ -521,6 +523,9 @@ if __name__ == '__main__':
     for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
         str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
     print('{}\t{}'.format(str_0, str_1))
+
+    plt.clf()
+    evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title="MCMC Unfolding Best Fit Logf Tau 0.9")
 
     print('\nMinimize Solution:')
     llh = ff.solution.StandardLLH(tau=None,
