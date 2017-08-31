@@ -188,8 +188,8 @@ if __name__ == '__main__':
     df_detector = df_train[int(0.8 * len(df_train)):]
     df_tree = df_train[:int(0.8 * len(df_train))]
 
-    real_bins = 21
-    signal_bins = 26
+    real_bins = 10
+    signal_bins = 16
 
     tree_obs = ["size",
                 "width",
@@ -432,22 +432,21 @@ if __name__ == '__main__':
     vec_acceptance = generate_acceptance_correction(
         vec_f_truth=vec_f,
         binning=binning_energy,
-        logged_truth=False,
+        logged_truth=True,
     )
 
     print(vec_acceptance)
 
     # Get the full energy and all that from teh gustav_werner
     gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
-    true_total_energy = gustav_gamma.get("energy").values
+    true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
-    binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
+    #binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
 
     # binned_true_validate = tree_binning.digitize(true_total_energy)
     binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
 
-    true_counted_bin = np.bincount(binned_E_true_validate)
-    true_counted_bin = true_counted_bin[1:]
+    true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
     detector_true_counted_bin = np.bincount(binned_E_validate)
 
     print("Detector True Shape: " + str(detector_matrix_tree.shape))
@@ -484,13 +483,60 @@ if __name__ == '__main__':
     calc_acceptance_graphing_points = vec_acceptance * vec_f
     x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
     plt.clf()
-    plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance")
-    #plt.step(x_acceptance_graphing_bins, true_counted_bin, where="mid", label="Raw True Acceptance")
-    plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance")
+    plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance * vec_f")
+    plt.step(x_acceptance_graphing_bins, acceptance_vector_true, where="mid", label="Raw True Acceptance")
+    plt.step(x_acceptance_graphing_bins, vec_acceptance, where="mid", label="Raw Calc Acceptance")
+    plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance * vec_f")
+    plt.step(x_acceptance_graphing_bins, vec_f, where="mid", label="vec_f")
     plt.legend(loc='best')
     plt.yscale("log")
     #plt.show()
-    plt.savefig("Acceptance_Functions_all.png")
+    plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing.png")
+
+
+    model = ff.model.LinearModel()
+    model.initialize(digitized_obs=binned_g_validate,
+                     digitized_truth=binned_E_validate)
+
+    print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FRIST RUN)')
+
+    llh = ff.solution.StandardLLH(tau=None,
+                                  C='thikonov',
+                                  neg_llh=False)
+    llh.initialize(vec_g=vec_g,
+                   model=model)
+
+    sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
+                                           random_state=1337)
+    sol_mcmc.initialize(llh=llh, model=model)
+    sol_mcmc.set_x0_and_bounds()
+    vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
+    str_0 = 'unregularized:'
+    str_1 = ''
+    for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
+        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+    print('{}\t{}'.format(str_0, str_1))
+
+    print('\nMinimize Solution:')
+    llh = ff.solution.StandardLLH(tau=None,
+                                  C='thikonov',
+                                  neg_llh=True)
+    llh.initialize(vec_g=vec_g,
+                   model=model)
+
+    sol_mini = ff.solution.LLHSolutionMinimizer()
+    sol_mini.initialize(llh=llh, model=model)
+    sol_mini.set_x0_and_bounds()
+
+    solution, V_f_est = sol_mini.fit(constrain_N=False)
+    vec_f_est_mini = solution.x
+    str_0 = 'unregularized:'
+    str_1 = ''
+    for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+        str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+    print('{}\t{}'.format(str_0, str_1))
+
+
 
     # A = np.histogram2d(x=)
 
@@ -505,6 +551,6 @@ if __name__ == '__main__':
 
     #other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
 
-    mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_walkers=100, num_threads=1, num_used_steps=100,
-                                                 num_burn_steps=100, random_state=1347)
+    #mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_walkers=100, num_threads=1, num_used_steps=100,
+    #                                             num_burn_steps=100, random_state=1347)
     #evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")

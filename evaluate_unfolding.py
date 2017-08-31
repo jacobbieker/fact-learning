@@ -28,31 +28,26 @@ def plot_corner(unfolded_vector, energies=None, title=None):
     plt.savefig("mcmc_output_" + title + ".png")
 
 
-def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, num_bins=20, title=None):
+def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
-    binning = np.linspace(min(energies), max(energies), num_bins + 1)
-    bin_width = (binning[1:] - binning[:-1]) / 2.
-    bin_center = (binning[:-1] + binning[1:]) / 2.
-    true_hits = np.histogram(energies, bins=binning)
+    binning = np.linspace(0, unfolded_vector.shape[0], unfolded_vector.shape[0])
+    errors[0] = unfolded_vector - errors[0]
+    errors[1] = errors[1] - unfolded_vector
     if errors is not None:
-        plt.errorbar(bin_center, unfolded_vector, xerr=bin_width, yerr=errors, fmt='.', label="Unfolding Error")
+        plt.errorbar(binning, unfolded_vector, yerr=errors, fmt='.', label="Unfolding Error")
 
-    plt.hist(bin_center, weights=true_hits[0], bins=binning, normed=False,
-             label="True Energy", histtype='step')
-    plt.hist(bin_center, bins=binning, weights=unfolded_vector, histtype='step', label='Unfolded Energy')
-    #x_pdf_space = np.linspace(powerlaw.ppf(0.01, 0.70), powerlaw.ppf(1.0, 0.70), unfolded_vector.shape[0])
-    #x_vector = powerlaw.pdf(x_pdf_space, 0.70)
-    #plt.plot(1000.0 * x_pdf_space, x_vector, 'r-', lw=5, alpha=0.6, label='powerlaw pdf')
-    # plt.errorbar(unfolded_vector, y=y_values[0], yerr=sigma_x_unf)
+    plt.step(binning, energies, where="mid", label="True Energy")
+    plt.step(binning, unfolded_vector, where="mid", label="Unfolded Energy")
+
     if not title:
         plt.title("Number of Particles: " + str(energies.shape[0]))
     else:
         plt.title(str(title))
     plt.legend(loc='best')
-    plt.xscale('log')
+    #plt.xscale('log')
     plt.yscale('log')
-    plt.show()
+    plt.savefig("errors_mcmc_std.png")
 
 
 def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=None, num_bins=20, title=None):
