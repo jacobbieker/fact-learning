@@ -252,8 +252,11 @@ class Detector:
         #3 signal = np.digitize(np.sum(signal, axis=1), binning_g)
         #true_hits = np.digitize(energies, binning_f)
 
-        signal = np.histogram(np.sum(signal, axis=1), bins=binning_g)[0]
-        true_hits = np.histogram(energies, bins=binning_f)[0]
+        #signal = np.histogram(np.sum(signal, axis=1), bins=binning_g)[0]
+        #true_hits = np.histogram(energies, bins=binning_f)[0]
+
+        signal = np.digitize(np.sum(signal, axis=1), bins=binning_g)
+        true_hits = np.digitize(energies, bins=binning_f)
         energies = true_hits
 
         return signal, true_hits, energies, detector_matrix

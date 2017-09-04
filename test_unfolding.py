@@ -86,8 +86,8 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
     detector_response_matrix = get_response_matrix()
     col_norm_matrix = get_unbalance_response_matrix()
     row_norm_matrix = get_unbalance_response_matrix('row')
-    y_vector = np.histogram(energies, bins=num_bins)
-    detected_signal = np.dot(y_vector[0], detector_response_matrix)
+    y_vector = np.histogram(energies, bins=num_bins)[0]
+    detected_signal = np.dot(y_vector, detector_response_matrix)
     col_detected_signal = np.dot(y_vector[0], col_norm_matrix)
     row_detected_signal = np.dot(y_vector[0], row_norm_matrix)
     col_unfolding_results = matrix_inverse_unfolding(col_detected_signal, col_norm_matrix)
@@ -98,7 +98,7 @@ def test_epsilon_response_matrix_unfolding(random_state=None, epsilon=0.2, num_b
         assert y_vector[0].all() == col_unfolding_results[0].all()
         assert y_vector[0].all() == row_unfolding_results[0].all()
     if plot:
-        evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_unfolding_results[0], energies, num_bins=num_bins)
+        evaluate_unfolding.plot_unfolded_vs_true(y_vector, matrix_unfolding_results[0], title="Toy MC Unfolding")
         print("True x: " + str(y_vector[0]))
         print("Difference: " + str(y_vector[0] - matrix_unfolding_results[0]))
         print("Difference: " + str(y_vector[0] - col_unfolding_results[0]))
@@ -282,15 +282,13 @@ def test_svd_unfolding(random_state=None, detector_data=None, num_bins=20, plot=
         evaluate_unfolding.plot_svd_parts(svd_unfolding_results[1], svd_unfolding_results[2], svd_unfolding_results[3])
 
 
-def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=10, num_col=20, plot=False):
+def test_epsilon_svd_unfolding(random_state=None, epsilon=0.2, num_row=20, num_col=20, plot=False):
     if not isinstance(random_state, np.random.RandomState):
         random_state = np.random.RandomState(random_state)
 
     energies = 1000.0 * random_state.power(0.70, 500)
     below_zero = energies < 1.0
     energies[below_zero] = 1.0
-
-    # TODO: Fill rectangular matrix correct, currently making square matrix with extra zeros
 
     def get_response_matrix():
         A = np.zeros((num_row, num_col))
@@ -384,10 +382,10 @@ def test_mcmc_unfolding(random_state=None, detector_data=None, tau=1., regulariz
         true_hits = np.histogram(sum_true_energy, bins=detector_matrix.shape[0])[0]
 
     if plot:
-        evaluate_unfolding.plot_corner(mcmc_unfolding_results[0], energies=true_hits)
-        evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0],
-                                                           mcmc_unfolding_results[0][mcmc_unfolding_results[3]],
-                                                           mcmc_unfolding_results[2])
+        evaluate_unfolding.plot_corner(mcmc_unfolding_results[0], energies=true_hits, title="ToyMC")
+        #evaluate_unfolding.plot_unfolded_vs_signal_vs_true(mcmc_unfolding_results[0],
+        #                                                   mcmc_unfolding_results[0][mcmc_unfolding_results[3]],
+        #                                                   mcmc_unfolding_results[2])
 
 
 def generate_data(random_state=None, noise=True, smearing=True, resolution_val=1., noise_val=0., response_bins=20,
@@ -432,7 +430,7 @@ if __name__ == "__main__":
     #reloaded_data = np.load("detector_data.npy")
     reloaded_data = dataset
 
-    if False:
+    if True:
         print(reloaded_data[0].shape)
         sum_signal_per_chamber = np.sum(reloaded_data[0], axis=1)
         sum_true_per_chamber = np.sum(reloaded_data[1], axis=1)
@@ -467,19 +465,19 @@ if __name__ == "__main__":
         plt.show()
 
     # test_same_dataset_std(1347, reloaded_data, )
-    test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
-    # test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
+    #test_mcmc_unfolding(random_state=1337, tau=0.5, detector_data=reloaded_data, regularized=False, plot=True)
+    #test_llh_unfolding(1347, tau=0.5, plot=True, regularized=False, detector_data=reloaded_data, unfolding=True)
     # test_llh_unfolding(np.random.RandomState(), tau=0.09, plot=True, regularized=True, smearing=False, noise=False, noise_val=0.,
     #                   resolution_val=1., unfolding=True)
-    # test_identity_response_matrix_unfolding(1347, )
-    #test_svd_unfolding(1347, detector_data=reloaded_data, plot=False)
-    # test_epsilon_svd_unfolding(1347, plot=True)
+    #test_identity_response_matrix_unfolding(1347, plot=True)
+    #test_svd_unfolding(1347, detector_data=reloaded_data, plot=True)
+    #test_epsilon_svd_unfolding(1347, plot=True)
     # test_multiple_datasets_std(1347, method=matrix_inverse_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
     # test_multiple_datasets_std(1347, method=svd_unfolding, smearing=False, noise=False, plot=True, num_datasets=500)
-    # test_detector_response_matrix_unfolding(1347, plot=True)
+    #test_detector_response_matrix_unfolding(1347, detector_data=reloaded_data, plot=True)
     # test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=15, num_bins=20, plot=True)
-    # test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
+    test_eigenvalue_cutoff_response_matrix_unfolding(1347, cutoff=10, num_bins=20, plot=True)
     # test_identity_response_matrix_unfolding(1347, plot=False)
-    # test_epsilon_response_matrix_unfolding(1347, epsilon=0.0, num_bins=20, plot=True)
+    test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, plot=True)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.2, num_bins=600, plot=True)
     # test_epsilon_response_matrix_unfolding(1347, epsilon=0.499, num_bins=600, plot=True)

@@ -32,9 +32,9 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, title=None):
     # plt.hist(unfolded_vector, bins=num_bins, label="Unfolded Energy")
     # sum_true_energy = np.sum(energies, axis=1)
     binning = np.linspace(0, unfolded_vector.shape[0], unfolded_vector.shape[0])
-    errors[0] = unfolded_vector - errors[0]
-    errors[1] = errors[1] - unfolded_vector
     if errors is not None:
+        errors[0] = unfolded_vector - errors[0]
+        errors[1] = errors[1] - unfolded_vector
         plt.errorbar(binning, unfolded_vector, yerr=errors, fmt='.', label="Unfolding Error")
 
     plt.step(binning, energies, where="mid", label="True Energy")
@@ -47,7 +47,7 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, title=None):
     plt.legend(loc='best')
     #plt.xscale('log')
     plt.yscale('log')
-    plt.savefig("errors_mcmc_std_testing_" + str(title) + ".png")
+    plt.savefig("errors_mcmc_std_square_" + str(title) + str(np.random.random()) + ".png")
 
 
 def plot_unfolded_vs_signal_vs_true(unfolded_vector, signal, energies, errors=None, num_bins=20, title=None):
@@ -92,7 +92,7 @@ def plot_eigenvalues(eigenvalues):
     plt.ylabel('Value of inverse Eigenvalue')
     plt.title('Ordered Inverse Eigenvalues')
     plt.legend(loc='best')
-    plt.show()
+    plt.savefig("eigenvalues_toyMC.png")
 
 
 def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured_coefficients, error):
@@ -129,7 +129,7 @@ def plot_eigenvalue_coefficients(true_coefficients, folded_coefiicient, measured
     plt.legend(loc="best")
     plt.yscale('log')
     # plt.xscale('log')
-    plt.show()
+    plt.savefig("eigenvalule_coeff_toyMC.png")
 
 
 def plot_error_stats(mean, std):
