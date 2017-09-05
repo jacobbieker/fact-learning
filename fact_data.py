@@ -611,7 +611,7 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_" + str(run))
         plt.close()
         plt.clf()
-        if run > 20:
+        if run > 5:
             break
 
 
@@ -621,8 +621,11 @@ if __name__ == '__main__':
         inputdta = inputdta[~np.isnan(inputdta)]
         return inputdta
 
-
-    list_of_mcmc_errors = remove_nan(list_of_mcmc_errors)
+    fixed_mcmc = []
+    for index, element in enumerate(list_of_mcmc_errors):
+        element_fixed = remove_nan(element)
+        fixed_mcmc.append(element_fixed)
+    list_of_mcmc_errors = np.asarray(fixed_mcmc)
     list_of_acceptance_errors = remove_nan(list_of_acceptance_errors)
     list_of_tree_condition_numbers = remove_nan(list_of_tree_condition_numbers)
     list_of_classic_conditions = remove_nan(list_of_classic_conditions)
