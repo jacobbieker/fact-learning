@@ -3,76 +3,16 @@ import matplotlib
 matplotlib.use('Agg')
 
 import funfolding as ff
-from funfolding import discretization
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import corner
 import evaluate_unfolding
-import unfolding
-import os
-
-import multiprocessing
 
 from fact.io import read_h5py
 from fact.analysis import split_on_off_source_independent
 from fact.analysis import split_on_off_source_dependent
 
-import logging
-
-'''
-Parameters for the classic fitting of the gamma data, taken from the TRUEE settings
-# 1st observable
-branch_y: gamma_energy_prediction
-number_y_bins: 25 log # just an example for logarithmic input
-# limits_y: 0 0
-
-branch_y: conc_core
-number_y_bins: 15 log
-# limits_y: 0 0
-
-
-branch_y: zd_tracking
-number_y_bins: 3
-# limits_y: {min_zenith} {max_zenith}
-'''
-
-'''
-TODO: Run 500 or so iterations, with 10,000 MC data points set aside as the test, and the rest used to train on, changing the testing set each time
-
-Make the unfolding vs raw with noise level plot for the output
-
-Try with classic equidistant binning and then the non equidistant one
-
-Use SVD unfolding first since it is fast to run
-
-Run on vollmond probably, since it takes a long time
-
-
-Create a thing to enable giving data and running multiple tests with different binnings and unfolding ways at once
-
-Create plot of the singular value / max(singular value) for the different binnings or SVD unfoldings....And get condition
-
-Add support for using the a vector  to get unfolded back to true distribution (f * a elementwise) in the regularization
-
-Use 20 percent for training tree, 80 percent for detector matrix
-
-For the tree, use lots of bins, set a min number of elements per leaf, not a set number of bins for better results
-
-Error for SVD is covariance matrix, just use diagonal for now for the errors [X]
-
-So use the digitized g and f vectors to create the detector response by zip(vec_f, vec_g): 
-A[i,j] += 1 
-
-or something similar. Almsot right but not quite at the moment. Should have two digistized ones that are the lengths of the input number of particles and then just slot them into the detector matrix. Tree has a thing that can do that, looke at testing.py. 
-
-Have to change linspace in testing since thats for icecube data, same with the energy things
-
-Basically need digitized things to make it work correctly and to build the detector matricies, which is where we get the singular values from.
-
-'''
-
-log = logging.getLogger("setup_pypet")
 
 # df = pd.read_hdf("gamma_precuts.hdf5")
 # print(list(df))
@@ -94,8 +34,6 @@ def load_gamma_subset(sourcefile,
                              for i in range(1, num_off_positions)]
 
     if analysis_type == 'source':
-        log.info('\tSelection events for source dependent analysis')
-        log.info("\t\tgamma_pred_cut={0:.2f}".format(conf_cut))
         on_data, off_data = split_on_off_source_dependent(
             events=events,
             prediction_threshold=conf_cut,
@@ -103,9 +41,6 @@ def load_gamma_subset(sourcefile,
             off_prediction_keys=bg_prediction_columns)
         on_mc = events.query('gamma_prediction >= {}'.format(conf_cut))
     elif analysis_type == 'classic':
-        log.info('\tSelection events for source independent analysis')
-        log.info("\t\tgamma_pred_cut={0:.2f}".format(conf_cut))
-        log.info("\t\ttheta2_cut={0:.2f}".format(theta2_cut))
         on_data, off_data = split_on_off_source_independent(
             events=events.query('gamma_prediction >= {}'.format(conf_cut)),
             theta2_cut=theta2_cut,
@@ -114,11 +49,6 @@ def load_gamma_subset(sourcefile,
         on_mc = events.query(
             '(theta_deg <= {}) & (gamma_prediction >= {})'.format(
                 theta2_cut, conf_cut))
-
-    log.info("\t{} Data Events (on region)".format(len(on_data)))
-    log.info("\t\t{} Data Events ({} off regions)".format(len(off_data),
-                                                          num_off_positions))
-    log.info("\t{} MC gammas after selection".format(len(on_mc)))
 
     if with_runs:
         runs = read_h5py(sourcefile, key='runs')
@@ -248,10 +178,16 @@ if __name__ == '__main__':
     # 0's are off
     on_data = convert_to_log(on_data)
     gustav_gamma = pd.read_hdf("gamma_gustav_werner_corsika.hdf5", key="table")
+    # Get the full energy and all that from teh gustav_werner
+    true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
     print(on_data.shape)
     print(off_data.shape)
     print(mc_data.shape)
+
+    # Just to save some Memory
+    del off_data
+    del mc_data
 
     # Now call this 500 times to get the variance, etc... Change plotting as well
     number_pulls = 500
@@ -264,8 +200,6 @@ if __name__ == '__main__':
 
     # Generator so go through it calling the events each time
 
-    num_pulls_prim = int(on_data.shape[0] / 10000) - 2
-
     list_of_mcmc_errors = []
     list_of_acceptance_errors = []
     list_of_tree_condition_numbers = []
@@ -273,16 +207,14 @@ if __name__ == '__main__':
     list_of_closest_conditions = []
     list_of_lowest_conditions = []
 
-    pool = multiprocessing.Pool(os.cpu_count())
-
-
-
-    for run in range(1, num_pulls_prim):
+    run = 0
+    for indicies in testing_data:
+        run += 1
         print(run)
 
         # Get the "test" vs non test data
-        df_test = on_data[10000*(run-1):10000*run]
-        df_train = on_data[~on_data.isin(df_test)].dropna(how='all')
+        df_test = on_data.loc[indicies[0]].dropna(how='all')
+        df_train = on_data.loc[indicies[1]].dropna(how='all')
 
         # Split into 20 /80 mix for tree/detector matrix sets
         df_tree = df_train[int(0.8 * len(df_train)):]
@@ -511,7 +443,7 @@ if __name__ == '__main__':
         ax.set_ylim([1e-2, 1e3])
         ax.set_yscale("log", nonposy='clip')
         ax.legend(loc='best')
-        fig.savefig('output/08_classic_binning_' + str(run) + '.png')
+        fig.savefig('output/08_classic_binning_m+testing_' + str(run) + '.png')
 
 
         def generate_acceptance_correction(vec_f_truth,
@@ -532,56 +464,21 @@ if __name__ == '__main__':
             flux_factor = 1  # 1 / (27000.**2 * np.pi * measurement['t_obs'])
             return vec_acceptance * flux_factor
 
-
-        '''
-        binned_e corresponds to binned_E_validate, both are binnings of true_energy 
-        '''
-
         vec_acceptance = generate_acceptance_correction(
             vec_f_truth=vec_f,
             binning=binning_energy,
             logged_truth=True,
         )
 
-        print(vec_acceptance)
-
-        # Get the full energy and all that from teh gustav_werner
-        true_total_energy = np.log10(gustav_gamma.get("energy").values)
-
-        #binning_energy = np.linspace(min(true_total_energy)-1e-3, max(true_total_energy)+1e-3, real_bins)
-
-        # binned_true_validate = tree_binning.digitize(true_total_energy)
         binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
 
         true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
         detector_true_counted_bin = np.bincount(binned_E_validate)
 
-        print("Detector True Shape: " + str(detector_matrix_tree.shape))
-        print("Vec Acceptance Shape: " + str(vec_acceptance.shape))
-        print("Real Bins Value: " + str(real_bins))
-        print("True Counted Value: " + str(true_counted_bin.shape))
-        print("Detector True Counted Bin: " + str(detector_true_counted_bin))
-        print("Real Count:" + str(true_counted_bin))
-        print("Binned E Validate Max:" + str(max(binned_E_validate)))
-        print("Binned True Validate Max: " + str(max(binned_E_true_validate)))
-
-        #true_detector = np.histogram2d(true_counted_bin, detector_true_counted_bin)[0]
-        #true_detector2 = np.histogram2d(true_counted_bin, true_counted_bin)[0]
-
-        # Generated number / Total number selected in the bin = acceptance function
-        # So have the true number, generated number is the binned_g_validate
-        # Total real in teh detector is binned_E_energy
-        # So should just do true_counted_bin / detector_true_counted_bin
-
-        # vec_f includes only those selected events that really hit the detector
-        # So even if wrong, vec_acceptance should be the same value
-        # Instead it is between 1000 and 10 million times larger
-
         acceptance_vector_true = true_counted_bin / vec_f
 
         acceptance_difference = acceptance_vector_true / vec_acceptance
 
-        print("Acceptance Difference (True / Calculated): ")
         print(acceptance_difference)
         list_of_acceptance_errors.append(acceptance_difference)
 
@@ -591,15 +488,6 @@ if __name__ == '__main__':
         calc_acceptance_graphing_points = vec_acceptance * vec_f
         x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
         plt.clf()
-        plt.step(x_acceptance_graphing_bins, true_acceptance_graphing_points, where="mid", label="True Acceptance * vec_f")
-        plt.step(x_acceptance_graphing_bins, acceptance_vector_true, where="mid", label="Raw True Acceptance")
-        plt.step(x_acceptance_graphing_bins, vec_acceptance, where="mid", label="Raw Calc Acceptance")
-        plt.step(x_acceptance_graphing_bins, calc_acceptance_graphing_points, where="mid", label="Calc Acceptance * vec_f")
-        plt.step(x_acceptance_graphing_bins, vec_f, where="mid", label="vec_f")
-        plt.legend(loc='best')
-        plt.yscale("log")
-        #plt.show()
-        plt.savefig("Acceptance_Functions_all_log_raw_vec_f_testing_" + str(run) + ".png")
 
         def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
             model = ff.model.LinearModel()
@@ -629,7 +517,7 @@ if __name__ == '__main__':
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
             print('{}\t{}'.format(str_0, str_1))
 
-            list_of_mcmc_errors.append((vec_f_est_mcmc, sigma_vec_f, vec_f))
+            list_of_mcmc_errors.append([vec_f_est_mcmc, sigma_vec_f, vec_f])
             # Every third one is of the same type
 
             plt.clf()
@@ -674,7 +562,7 @@ if __name__ == '__main__':
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
             print('{}\t{}'.format(str_0, str_1))
 
-            '''
+
             corner.corner(samples, truths=vec_f)
             plt.savefig('corner_truth' + title + '.png')
             print(np.sum(vec_f_est_mcmc))
@@ -686,9 +574,9 @@ if __name__ == '__main__':
             corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
             plt.savefig('corner_mcmc' + title + '.png')
             plt.clf()
-            '''
 
-        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning 10000_" + str(run))
+
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning_" + str(run))
 
         # Now have the tree binning response matrix, need classic binning ones
 
@@ -712,76 +600,61 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
 
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning 10000_"+ str(run))
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning 10000_"+ str(run))
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning_"+ str(run))
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_"+ str(run))
         plt.close()
 
     # Now plotting the different ones for the multiple runs
-    print("Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(np.std(list_of_tree_condition_numbers)))
-    print("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(np.std(list_of_classic_conditions)))
-    print("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(np.std(list_of_closest_conditions)))
-    print("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(np.std(list_of_lowest_conditions)))
+    def remove_nan(inputdta):
+        inputdta = np.asarray(inputdta)
+        inputdta = inputdta[~np.isnan(inputdta)]
+        return inputdta
+    list_of_mcmc_errors = remove_nan(list_of_mcmc_errors)
+    list_of_acceptance_errors = remove_nan(list_of_acceptance_errors)
+    list_of_tree_condition_numbers = remove_nan(list_of_tree_condition_numbers)
+    list_of_classic_conditions = remove_nan(list_of_classic_conditions)
+    list_of_closest_conditions = remove_nan(list_of_closest_conditions)
+    list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
+    with open("overall_stats.txt", "w") as output:
+        output.write("Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(np.std(list_of_tree_condition_numbers)))
+        output.write("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(np.std(list_of_classic_conditions)))
+        output.write("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(np.std(list_of_closest_conditions)))
+        output.write("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(np.std(list_of_lowest_conditions)))
 
-    list_of_mcmc_errors = np.asarray(list_of_mcmc_errors)
-    tree_error_real = list_of_mcmc_errors[0::3]
-    lowest_error_real = list_of_mcmc_errors[1::3]
-    closest_error_real = list_of_mcmc_errors[2::3]
+        tree_error_real = list_of_mcmc_errors[0::3]
+        lowest_error_real = list_of_mcmc_errors[1::3]
+        closest_error_real = list_of_mcmc_errors[2::3]
 
-    tree_error_real_lower1 = tree_error_real[0] - tree_error_real[1][0]
-    tree_error_real_upper1 = tree_error_real[1][1] - tree_error_real[0]
+        tree_error_real_lower1 = tree_error_real[0] - tree_error_real[1][0]
+        tree_error_real_upper1 = tree_error_real[1][1] - tree_error_real[0]
 
-    print("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(np.std(tree_error_real_lower1)))
-    print("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(np.std(tree_error_real_upper1)))
+        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(np.std(tree_error_real_lower1)))
+        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(np.std(tree_error_real_upper1)))
 
-    closest_error_real_lower = closest_error_real[0] - closest_error_real[1][0]
-    closest_error_real_upper = closest_error_real[1][1] - closest_error_real[0]
+        closest_error_real_lower = closest_error_real[0] - closest_error_real[1][0]
+        closest_error_real_upper = closest_error_real[1][1] - closest_error_real[0]
 
-    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(np.std(closest_error_real_lower)))
-    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(np.std(closest_error_real_upper)))
+        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(np.std(closest_error_real_lower)))
+        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(np.std(closest_error_real_upper)))
 
-    lowest_error_real_lower = lowest_error_real[0] - lowest_error_real[1][0]
-    lowest_error_real_upper = lowest_error_real[1][1] - lowest_error_real[0]
+        lowest_error_real_lower = lowest_error_real[0] - lowest_error_real[1][0]
+        lowest_error_real_upper = lowest_error_real[1][1] - lowest_error_real[0]
 
-    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(np.std(lowest_error_real_lower)))
-    print("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(np.std(lowest_error_real_upper)))
+        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(np.std(lowest_error_real_lower)))
+        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(np.std(lowest_error_real_upper)))
 
-    tree_raw_off = tree_error_real[0] / tree_error_real[2]
-    closest_raw_off = closest_error_real[0] / closest_error_real[2]
-    lowest_raw_off = lowest_error_real[0] / lowest_error_real[2]
+        tree_raw_off = tree_error_real[0] / tree_error_real[2]
+        closest_raw_off = closest_error_real[0] / closest_error_real[2]
+        lowest_raw_off = lowest_error_real[0] / lowest_error_real[2]
 
-    x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
-    plt.clf()
-    plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning Difference")
-    plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
-    plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
-    plt.legend(los='best')
-    plt.title("Difference between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
-    plt.xlabel("Run Number")
-    plt.ylabel("log(Difference)")
-    plt.yscale('log')
-    plt.savefig("output/Multiple_Run_Difference.png")
-
-
-    #test_different_binnings(digitized_classic, binned_E_test_validate, "Classic Binning 10000")
-
-
-
-
-
-
-# A = np.histogram2d(x=)
-
-    # Get the bin counts and then add them in the histogram
-
-    # linear_binning_model = ff.model.LinearModel()
-
-    # true_total_detector = linear_binning_model.A
-
-    # Now can subtract from each to get the correctance factor, see if its the same as the vec_acceptance
-
-
-    #other_acceptance_vec = 0  # Get this from counting the raw counts of the truth vs the others
-
-    #mcmc_fact_results = unfolding.mcmc_unfolding(vec_g, vec_f, detector_matrix_tree, num_walkers=100, num_threads=1, num_used_steps=100,
-    #                                             num_burn_steps=100, random_state=1347)
-    #evaluate_unfolding.plot_corner(mcmc_fact_results[0], energies=binned_E_validate, title="TreeBinning_4000")
+        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+        plt.clf()
+        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning Difference")
+        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
+        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
+        plt.legend(los='best')
+        plt.title("Difference between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
+        plt.xlabel("Run Number")
+        plt.ylabel("log(Difference)")
+        plt.yscale('log')
+        plt.savefig("output/Multiple_Run_Difference.png")
