@@ -144,12 +144,12 @@ def split_mc_test_unfolding(n_pulls,
     if (n_events_test + n_events_binning + n_events_A) > n_events_mc:
         raise ValueError("'n_events_test' + 'n_events_binning' + 'n_events_A' "
                          "has to be smaller than n_events_mc")
-    n_events_test_pulls = np.random.poisson(n_events_test,
+    n_events_test_pulls = random_state.poisson(n_events_test,
                                             size=n_pulls)
     idx = np.arange(n_events_mc)
 
     for n_events_test_i in n_events_test_pulls:
-        np.random.shuffle(idx)
+        random_state.shuffle(idx)
         test_idx = np.sort(idx[:n_events_test_i])
         train_idx = idx[n_events_test_i:]
 
@@ -208,6 +208,7 @@ if __name__ == '__main__':
     list_of_lowest_conditions = []
 
     run = 0
+    plot = False
     for indicies in testing_data:
         run += 1
         print(run)
@@ -345,23 +346,23 @@ if __name__ == '__main__':
         list_of_classic_conditions.append(1.0 / min(classic_singular_values))
         list_of_closest_conditions.append(1.0 / min(closest_singular_values))
         list_of_lowest_conditions.append(1.0 / min(lowest_singular_values))
+        if plot:
+            plt.step(step_function_x_c, closest_singular_values, where="mid",
+                     label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
+            plt.step(step_function_x_l, lowest_singular_values, where="mid",
+                     label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
+            plt.step(step_function_x_t, tree_singular_values, where="mid",
+                     label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
+            plt.step(step_function_x_class, classic_singular_values, where="mid",
+                     label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
+            plt.xlabel("Singular Value Number")
+            plt.legend(loc="best")
+            plt.yscale('log')
+            plt.savefig("output/Singular_Values_" + str(run) + ".png")
+            plt.clf()
 
-        plt.step(step_function_x_c, closest_singular_values, where="mid",
-                 label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
-        plt.step(step_function_x_l, lowest_singular_values, where="mid",
-                 label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
-        plt.step(step_function_x_t, tree_singular_values, where="mid",
-                 label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
-        plt.step(step_function_x_class, classic_singular_values, where="mid",
-                 label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
-        plt.xlabel("Singular Value Number")
-        plt.legend(loc="best")
-        plt.yscale('log')
-        plt.savefig("output/Singular_Values_" + str(run) + ".png")
-        plt.clf()
-
-        # Blobel Thing
-        fig, ax = plt.subplots()
+            # Blobel Thing
+            fig, ax = plt.subplots()
 
 
         def compare_binning_svd(binned_g, binned_E, title):
@@ -387,19 +388,19 @@ if __name__ == '__main__':
             for f_i_est, f_i in zip(vec_f_est, vec_b):
                 str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
             print('{}'.format(str_1))
+            if plot:
+                normed_b = np.absolute(vec_b / sigma_b)
+                normed_b_est = np.absolute(vec_b_est / sigma_b)
+                order = np.argsort(normed_b)[::-1]
 
-            normed_b = np.absolute(vec_b / sigma_b)
-            normed_b_est = np.absolute(vec_b_est / sigma_b)
-            order = np.argsort(normed_b)[::-1]
+                normed_b = normed_b[order]
+                normed_b_est = normed_b_est[order]
+                binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
+                bin_centers = (binning[1:] + binning[:-1]) / 2
+                bin_width = (binning[1:] - binning[:-1]) / 2
 
-            normed_b = normed_b[order]
-            normed_b_est = normed_b_est[order]
-            binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
-            bin_centers = (binning[1:] + binning[:-1]) / 2
-            bin_width = (binning[1:] - binning[:-1]) / 2
-
-            ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
-                    histtype='step')
+                ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
+                        histtype='step')
 
 
         compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
@@ -430,21 +431,21 @@ if __name__ == '__main__':
         binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
         bin_centers = (binning[1:] + binning[:-1]) / 2
         bin_width = (binning[1:] - binning[:-1]) / 2
+        if plot:
+            ax.hist(bin_centers,
+                    bins=binning,
+                    weights=normed_b,
+                    label='Truth',
+                    histtype='step')
 
-        ax.hist(bin_centers,
-                bins=binning,
-                weights=normed_b,
-                label='Truth',
-                histtype='step')
-
-        ax.axhline(1.)
-        ax.set_xlabel(r'Index $j$')
-        ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
-        ax.set_ylim([1e-2, 1e3])
-        ax.set_yscale("log", nonposy='clip')
-        ax.legend(loc='best')
-        fig.savefig('output/08_classic_binning_m+testing_' + str(run) + '.png')
-
+            ax.axhline(1.)
+            ax.set_xlabel(r'Index $j$')
+            ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
+            ax.set_ylim([1e-2, 1e3])
+            ax.set_yscale("log", nonposy='clip')
+            ax.legend(loc='best')
+            fig.savefig('output/08_classic_binning_m+testing_' + str(run) + '.png')
+        plt.clf()
 
         def generate_acceptance_correction(vec_f_truth,
                                            binning,
@@ -520,9 +521,10 @@ if __name__ == '__main__':
             list_of_mcmc_errors.append([vec_f_est_mcmc, sigma_vec_f, vec_f])
             # Every third one is of the same type
 
-            plt.clf()
-            evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
-            plt.close()
+            if plot:
+                plt.clf()
+                evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
+                plt.close()
 
             print('\nMinimize Solution:')
             llh = ff.solution.StandardLLH(tau=None,
@@ -562,18 +564,18 @@ if __name__ == '__main__':
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
             print('{}\t{}'.format(str_0, str_1))
 
+            if plot:
+                corner.corner(samples, truths=vec_f)
+                plt.savefig('corner_truth' + title + '.png')
+                print(np.sum(vec_f_est_mcmc))
 
-            corner.corner(samples, truths=vec_f)
-            plt.savefig('corner_truth' + title + '.png')
-            print(np.sum(vec_f_est_mcmc))
-    
-            plt.clf()
-            corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
-            plt.savefig('corner_mini' + title + '.png')
-            plt.clf()
-            corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
-            plt.savefig('corner_mcmc' + title + '.png')
-            plt.clf()
+                plt.clf()
+                corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
+                plt.savefig('corner_mini' + title + '.png')
+                plt.clf()
+                corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
+                plt.savefig('corner_mcmc' + title + '.png')
+                plt.clf()
 
 
         test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning_" + str(run))
@@ -632,6 +634,24 @@ if __name__ == '__main__':
 
         output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(np.std(tree_error_real_lower1)))
         output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(np.std(tree_error_real_upper1)))
+
+        # Plot the mean fitting vs the mean data for Tree, Closest, Lowest
+
+        mean_tree_sets = [np.mean(tree_error_real[0]), np.mean(tree_error_real[1]), np.mean(tree_error_real[2])]
+        mean_closest_sets = [np.mean(closest_error_real[0]), np.mean(closest_error_real[1]), np.mean(closest_error_real[2])]
+        mean_lowest_sets = [np.mean(lowest_error_real[0]), np.mean(lowest_error_real[1]), np.mean(lowest_error_real[2])]
+
+        plt.clf()
+        evaluate_unfolding.plot_unfolded_vs_true(mean_tree_sets[0], mean_tree_sets[2], mean_tree_sets[1], title="Mean_Tree_Binning")
+        plt.close()
+
+        plt.clf()
+        evaluate_unfolding.plot_unfolded_vs_true(mean_closest_sets[0], mean_closest_sets[2], mean_closest_sets[1], title="Mean_Closest_Binning")
+        plt.close()
+
+        plt.clf()
+        evaluate_unfolding.plot_unfolded_vs_true(mean_lowest_sets[0], mean_lowest_sets[2], mean_lowest_sets[1], title="Mean_Lowest_Binning")
+        plt.close()
 
         closest_error_real_lower = closest_error_real[0] - closest_error_real[1][0]
         closest_error_real_upper = closest_error_real[1][1] - closest_error_real[0]
