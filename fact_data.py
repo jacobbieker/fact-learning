@@ -15,11 +15,14 @@ from fact.analysis import split_on_off_source_dependent
 
 
 # df = pd.read_hdf("gamma_precuts.hdf5")
+# if plot:
 # print(list(df))
-print("+++++++++++++++++++++++++++++++++++++++++++")
+if plot:
+    print("+++++++++++++++++++++++++++++++++++++++++++")
 
 
 # mc_df = read_h5py("gamma_test.hdf5", key='events')
+# if plot:
 # print(list(mc_df))
 
 
@@ -181,9 +184,12 @@ if __name__ == '__main__':
     # Get the full energy and all that from teh gustav_werner
     true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
-    print(on_data.shape)
-    print(off_data.shape)
-    print(mc_data.shape)
+    if plot:
+        print(on_data.shape)
+    if plot:
+        print(off_data.shape)
+    if plot:
+        print(mc_data.shape)
 
     # Just to save some Memory
     del off_data
@@ -211,7 +217,8 @@ if __name__ == '__main__':
     plot = False
     for indicies in testing_data:
         run += 1
-        print(run)
+        if plot:
+            print(run)
 
         # Get the "test" vs non test data
         df_test = on_data.loc[indicies[0]].dropna(how='all')
@@ -387,7 +394,8 @@ if __name__ == '__main__':
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est, vec_b):
                 str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
-            print('{}'.format(str_1))
+            if plot:
+                print('{}'.format(str_1))
             if plot:
                 normed_b = np.absolute(vec_b / sigma_b)
                 normed_b_est = np.absolute(vec_b_est / sigma_b)
@@ -480,7 +488,8 @@ if __name__ == '__main__':
 
         acceptance_difference = acceptance_vector_true / vec_acceptance
 
-        print(acceptance_difference)
+        if plot:
+            print(acceptance_difference)
         list_of_acceptance_errors.append(acceptance_difference)
 
         # Plot the difference in the conversion back to true
@@ -497,7 +506,8 @@ if __name__ == '__main__':
 
             vec_g, vec_f = model.generate_vectors(observed_energy, true_energy)
 
-            print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
+            if plot:
+                print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
 
             llh = ff.solution.StandardLLH(tau=tau,
                                           vec_acceptance=acceptance_vector,
@@ -516,7 +526,8 @@ if __name__ == '__main__':
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est_mcmc, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            print('{}\t{}'.format(str_0, str_1))
+            if plot:
+                print('{}\t{}'.format(str_0, str_1))
 
             list_of_mcmc_errors.append([vec_f_est_mcmc, sigma_vec_f, vec_f])
             # Every third one is of the same type
@@ -526,7 +537,8 @@ if __name__ == '__main__':
                 evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
                 plt.close()
 
-            print('\nMinimize Solution:')
+            if plot:
+                print('\nMinimize Solution:')
             llh = ff.solution.StandardLLH(tau=None,
                                           C='thikonov',
                                           neg_llh=True)
@@ -543,18 +555,22 @@ if __name__ == '__main__':
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            print('{}\t{}'.format(str_0, str_1))
+            if plot:
+                print('{}\t{}'.format(str_0, str_1))
 
-            print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
+            if plot:
+                print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
             solution, V_f_est = sol_mini.fit(constrain_N=True)
             vec_f_est_mini = solution.x
             str_0 = 'unregularized:'
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            print('{}\t{}'.format(str_0, str_1))
+            if plot:
+                print('{}\t{}'.format(str_0, str_1))
 
-            print('\nMinimize Solution (MCMC as seed):')
+            if plot:
+                print('\nMinimize Solution (MCMC as seed):')
             sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
             solution, V_f_est = sol_mini.fit(constrain_N=False)
             vec_f_est_mini = solution.x
@@ -562,12 +578,14 @@ if __name__ == '__main__':
             str_1 = ''
             for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
                 str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            print('{}\t{}'.format(str_0, str_1))
+            if plot:
+                print('{}\t{}'.format(str_0, str_1))
 
             if plot:
                 corner.corner(samples, truths=vec_f)
                 plt.savefig('corner_truth' + title + '.png')
-                print(np.sum(vec_f_est_mcmc))
+                if plot:
+                    print(np.sum(vec_f_est_mcmc))
 
                 plt.clf()
                 corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
