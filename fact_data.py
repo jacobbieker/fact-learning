@@ -14,18 +14,6 @@ from fact.analysis import split_on_off_source_independent
 from fact.analysis import split_on_off_source_dependent
 
 
-# df = pd.read_hdf("gamma_precuts.hdf5")
-# if plot:
-# print(list(df))
-if plot:
-    print("+++++++++++++++++++++++++++++++++++++++++++")
-
-
-# mc_df = read_h5py("gamma_test.hdf5", key='events')
-# if plot:
-# print(list(mc_df))
-
-
 def load_gamma_subset(sourcefile,
                       theta2_cut=0.0, conf_cut=0.9, num_off_positions=1, analysis_type='classic', with_runs=False):
     events = read_h5py(sourcefile, key='events')
@@ -148,7 +136,7 @@ def split_mc_test_unfolding(n_pulls,
         raise ValueError("'n_events_test' + 'n_events_binning' + 'n_events_A' "
                          "has to be smaller than n_events_mc")
     n_events_test_pulls = random_state.poisson(n_events_test,
-                                            size=n_pulls)
+                                               size=n_pulls)
     idx = np.arange(n_events_mc)
 
     for n_events_test_i in n_events_test_pulls:
@@ -184,25 +172,19 @@ if __name__ == '__main__':
     # Get the full energy and all that from teh gustav_werner
     true_total_energy = np.log10(gustav_gamma.get("energy").values)
 
-    if plot:
-        print(on_data.shape)
-    if plot:
-        print(off_data.shape)
-    if plot:
-        print(mc_data.shape)
-
     # Just to save some Memory
     del off_data
     del mc_data
 
     # Now call this 500 times to get the variance, etc... Change plotting as well
     number_pulls = 500
-    num_events_mc = on_data.shape[0]-1
+    num_events_mc = on_data.shape[0] - 1
     num_events_test = 10000
     num_events_A = 0.1
     random_state = 1347
 
-    testing_data = split_mc_test_unfolding(number_pulls, num_events_mc, num_events_test, num_events_A, random_state=random_state)
+    testing_data = split_mc_test_unfolding(number_pulls, num_events_mc, num_events_test, num_events_A,
+                                           random_state=random_state)
 
     # Generator so go through it calling the events each time
 
@@ -455,6 +437,7 @@ if __name__ == '__main__':
             fig.savefig('output/08_classic_binning_m+testing_' + str(run) + '.png')
         plt.clf()
 
+
         def generate_acceptance_correction(vec_f_truth,
                                            binning,
                                            logged_truth):
@@ -472,6 +455,7 @@ if __name__ == '__main__':
                 vec_acceptance[i] = p_bin_i * n_showers / vec_i_detected
             flux_factor = 1  # 1 / (27000.**2 * np.pi * measurement['t_obs'])
             return vec_acceptance * flux_factor
+
 
         vec_acceptance = generate_acceptance_correction(
             vec_f_truth=vec_f,
@@ -496,8 +480,9 @@ if __name__ == '__main__':
 
         true_acceptance_graphing_points = acceptance_vector_true * vec_f
         calc_acceptance_graphing_points = vec_acceptance * vec_f
-        x_acceptance_graphing_bins = np.linspace(0,real_bins-1, real_bins-1)
+        x_acceptance_graphing_bins = np.linspace(0, real_bins - 1, real_bins - 1)
         plt.clf()
+
 
         def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True):
             model = ff.model.LinearModel()
@@ -534,7 +519,8 @@ if __name__ == '__main__':
 
             if plot:
                 plt.clf()
-                evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f, title=str(title + "_" + str(run)))
+                evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f,
+                                                         title=str(title + "_" + str(run)))
                 plt.close()
 
             if plot:
@@ -620,17 +606,20 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
         plt.clf()
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning_"+ str(run))
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning_" + str(run))
         plt.clf()
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_"+ str(run))
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_" + str(run))
         plt.close()
         plt.clf()
+
 
     # Now plotting the different ones for the multiple runs
     def remove_nan(inputdta):
         inputdta = np.asarray(inputdta)
         inputdta = inputdta[~np.isnan(inputdta)]
         return inputdta
+
+
     list_of_mcmc_errors = remove_nan(list_of_mcmc_errors)
     list_of_acceptance_errors = remove_nan(list_of_acceptance_errors)
     list_of_tree_condition_numbers = remove_nan(list_of_tree_condition_numbers)
@@ -638,10 +627,15 @@ if __name__ == '__main__':
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
     with open("overall_stats.txt", "w") as output:
-        output.write("Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(np.std(list_of_tree_condition_numbers)))
-        output.write("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(np.std(list_of_classic_conditions)))
-        output.write("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(np.std(list_of_closest_conditions)))
-        output.write("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(np.std(list_of_lowest_conditions)))
+        output.write(
+            "Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(
+                np.std(list_of_tree_condition_numbers)))
+        output.write("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(
+            np.std(list_of_classic_conditions)))
+        output.write("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(
+            np.std(list_of_closest_conditions)))
+        output.write("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(
+            np.std(list_of_lowest_conditions)))
 
         tree_error_real = list_of_mcmc_errors[0::3]
         lowest_error_real = list_of_mcmc_errors[1::3]
@@ -650,38 +644,52 @@ if __name__ == '__main__':
         tree_error_real_lower1 = tree_error_real[0] - tree_error_real[1][0]
         tree_error_real_upper1 = tree_error_real[1][1] - tree_error_real[0]
 
-        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(np.std(tree_error_real_lower1)))
-        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(np.std(tree_error_real_upper1)))
+        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower1)) + " " + str(
+            np.std(tree_error_real_lower1)))
+        output.write("Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_upper1)) + " " + str(
+            np.std(tree_error_real_upper1)))
 
         # Plot the mean fitting vs the mean data for Tree, Closest, Lowest
 
         mean_tree_sets = [np.mean(tree_error_real[0]), np.mean(tree_error_real[1]), np.mean(tree_error_real[2])]
-        mean_closest_sets = [np.mean(closest_error_real[0]), np.mean(closest_error_real[1]), np.mean(closest_error_real[2])]
+        mean_closest_sets = [np.mean(closest_error_real[0]), np.mean(closest_error_real[1]),
+                             np.mean(closest_error_real[2])]
         mean_lowest_sets = [np.mean(lowest_error_real[0]), np.mean(lowest_error_real[1]), np.mean(lowest_error_real[2])]
 
         plt.clf()
-        evaluate_unfolding.plot_unfolded_vs_true(mean_tree_sets[0], mean_tree_sets[2], mean_tree_sets[1], title="Mean_Tree_Binning")
+        evaluate_unfolding.plot_unfolded_vs_true(mean_tree_sets[0], mean_tree_sets[2], mean_tree_sets[1],
+                                                 title="Mean_Tree_Binning")
         plt.close()
 
         plt.clf()
-        evaluate_unfolding.plot_unfolded_vs_true(mean_closest_sets[0], mean_closest_sets[2], mean_closest_sets[1], title="Mean_Closest_Binning")
+        evaluate_unfolding.plot_unfolded_vs_true(mean_closest_sets[0], mean_closest_sets[2], mean_closest_sets[1],
+                                                 title="Mean_Closest_Binning")
         plt.close()
 
         plt.clf()
-        evaluate_unfolding.plot_unfolded_vs_true(mean_lowest_sets[0], mean_lowest_sets[2], mean_lowest_sets[1], title="Mean_Lowest_Binning")
+        evaluate_unfolding.plot_unfolded_vs_true(mean_lowest_sets[0], mean_lowest_sets[2], mean_lowest_sets[1],
+                                                 title="Mean_Lowest_Binning")
         plt.close()
 
         closest_error_real_lower = closest_error_real[0] - closest_error_real[1][0]
         closest_error_real_upper = closest_error_real[1][1] - closest_error_real[0]
 
-        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(np.std(closest_error_real_lower)))
-        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(np.std(closest_error_real_upper)))
+        output.write(
+            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(
+                np.std(closest_error_real_lower)))
+        output.write(
+            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(
+                np.std(closest_error_real_upper)))
 
         lowest_error_real_lower = lowest_error_real[0] - lowest_error_real[1][0]
         lowest_error_real_upper = lowest_error_real[1][1] - lowest_error_real[0]
 
-        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(np.std(lowest_error_real_lower)))
-        output.write("Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(np.std(lowest_error_real_upper)))
+        output.write(
+            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(
+                np.std(lowest_error_real_lower)))
+        output.write(
+            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(
+                np.std(lowest_error_real_upper)))
 
         tree_raw_off = tree_error_real[0] / tree_error_real[2]
         closest_raw_off = closest_error_real[0] / closest_error_real[2]
