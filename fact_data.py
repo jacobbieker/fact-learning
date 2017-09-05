@@ -199,8 +199,7 @@ if __name__ == '__main__':
     plot = False
     for indicies in testing_data:
         run += 1
-        if plot:
-            print(run)
+        print(run)
 
         # Get the "test" vs non test data
         df_test = on_data.loc[indicies[0]].dropna(how='all')
@@ -502,7 +501,8 @@ if __name__ == '__main__':
             llh.initialize(vec_g=vec_g,
                            model=model)
 
-            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=8000,
+            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=4000,
+                                                   n_threads=4,
                                                    random_state=1337)
             sol_mcmc.initialize(llh=llh, model=model)
             sol_mcmc.set_x0_and_bounds()
@@ -611,6 +611,8 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_" + str(run))
         plt.close()
         plt.clf()
+        if run > 20:
+            break
 
 
     # Now plotting the different ones for the multiple runs
@@ -651,10 +653,10 @@ if __name__ == '__main__':
 
         # Plot the mean fitting vs the mean data for Tree, Closest, Lowest
 
-        mean_tree_sets = [np.mean(tree_error_real[0]), np.mean(tree_error_real[1]), np.mean(tree_error_real[2])]
-        mean_closest_sets = [np.mean(closest_error_real[0]), np.mean(closest_error_real[1]),
-                             np.mean(closest_error_real[2])]
-        mean_lowest_sets = [np.mean(lowest_error_real[0]), np.mean(lowest_error_real[1]), np.mean(lowest_error_real[2])]
+        mean_tree_sets = [np.mean(tree_error_real[0], axis=1), np.mean(tree_error_real[1], axis=1), np.mean(tree_error_real[2], axis=1)]
+        mean_closest_sets = [np.mean(closest_error_real[0], axis=1), np.mean(closest_error_real[1], axis=1),
+                             np.mean(closest_error_real[2], axis=1)]
+        mean_lowest_sets = [np.mean(lowest_error_real[0], axis=1), np.mean(lowest_error_real[1], axis=1), np.mean(lowest_error_real[2], axis=1)]
 
         plt.clf()
         evaluate_unfolding.plot_unfolded_vs_true(mean_tree_sets[0], mean_tree_sets[2], mean_tree_sets[1],
