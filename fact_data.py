@@ -214,7 +214,7 @@ if __name__ == '__main__':
 
         # Get the "test" vs non test data
         df_test = on_data.loc[indicies[0]].dropna(how='all')
-        df_train = on_data.loc[indicies[1]].dropna(how='all')
+        df_train = on_data[~on_data.isin(df_test)].dropna(how='all')
 
         # Split into 20 /80 mix for tree/detector matrix sets
         df_tree = df_train[int(0.8 * len(df_train)):]
@@ -599,10 +599,12 @@ if __name__ == '__main__':
                                        max_bins=None,
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
-
+        plt.clf()
         test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning_"+ str(run))
+        plt.clf()
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning_"+ str(run))
         plt.close()
+        plt.clf()
 
     # Now plotting the different ones for the multiple runs
     def remove_nan(inputdta):
