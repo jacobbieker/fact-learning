@@ -503,7 +503,7 @@ if __name__ == '__main__':
             llh.initialize(vec_g=vec_g,
                            model=model)
 
-            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=200,
+            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
                                                    n_threads=4,
                                                    random_state=1337)
             sol_mcmc.initialize(llh=llh, model=model)
@@ -619,8 +619,7 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning", index=4)
         plt.close()
         plt.clf()
-        if run > 2:
-            break
+
 
 
     # Now plotting the different ones for the multiple runs
@@ -680,6 +679,10 @@ if __name__ == '__main__':
         plt.ylabel("log(Difference)")
         plt.yscale('log')
         plt.savefig("output/Multiple_Run_Difference.png")
+
+        output.write("Tree Binning Difference Mean and Std.: " + str(np.mean(tree_real)) + " " + str(np.std(tree_real)) + "\n")
+        output.write("Closest Binning Difference Mean and Std.: " + str(np.mean(closest_real)) + " " + str(np.std(closest_real)) + "\n")
+        output.write("Lowest Binning Difference Mean and Std.: " + str(np.mean(lowest_real)) + " " + str(np.std(lowest_real)) + "\n")
 
         tree_error_real_lower = list_mcmc_tree - tree_error_real
         tree_error_real_upper = tree_error_real - list_mcmc_tree
