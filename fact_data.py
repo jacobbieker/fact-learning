@@ -646,9 +646,9 @@ if __name__ == '__main__':
 
         x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
         plt.clf()
-        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning", c="c2")
-        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning", c="c0")
-        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning", c="c1")
+        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning")
+        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning")
+        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning")
         plt.legend(loc='best')
         plt.title("Ratio between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
         plt.xlabel("Run Number")
