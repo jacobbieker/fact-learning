@@ -538,11 +538,8 @@ if __name__ == '__main__':
                     print(np.sum(vec_f_est_mcmc))
 
                 plt.clf()
-                corner.corner(samples, truths=vec_f_est_mini, truth_color='r')
-                plt.savefig('corner_mini' + title + '.png')
-                plt.clf()
                 corner.corner(samples, truths=vec_f_est_mcmc, truth_color='springgreen')
-                plt.savefig('corner_mcmc' + title + '.png')
+                plt.savefig('corner_mcmc' + title + '.eps', format='eps', dpi=1000)
                 plt.clf()
 
 
@@ -575,6 +572,8 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning", index=4)
         plt.close()
         plt.clf()
+        if run > 12:
+            break
 
 
     # Now plotting the different ones for the multiple runs
@@ -589,6 +588,28 @@ if __name__ == '__main__':
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
     with open("overall_stats2.txt", "w") as output:
+        x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0])
+        plt.clf()
+        plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
+        plt.step(x_raw_off, list_of_lowest_conditions, where="mid", label="Lowest Binning")
+        plt.step(x_raw_off, list_of_tree_condition_numbers, where="mid", label="Tree Binning")
+        plt.step(x_raw_off, list_of_classic_conditions, where="mid", label="Classic Binning")
+        plt.legend(loc='best')
+        plt.title("Condition Numbers For " + str(list_of_tree_condition_numbers.shape[0]) + " Runs")
+        plt.xlabel("Run Number")
+        plt.ylabel("log(Condition)")
+        plt.yscale('log')
+        plt.savefig("output/Multiple_Run_Condition.png")
+        plt.clf()
+        plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
+        plt.step(x_raw_off, list_of_lowest_conditions, where="mid", label="Lowest Binning")
+        plt.step(x_raw_off, list_of_tree_condition_numbers, where="mid", label="Tree Binning")
+        plt.legend(loc='best')
+        plt.title("Condition Numbers For " + str(list_of_tree_condition_numbers.shape[0]) + " Runs")
+        plt.xlabel("Run Number")
+        plt.ylabel("log(Condition)")
+        plt.yscale('log')
+        plt.savefig("output/Multiple_Run_Condition_noclassic.png")
         output.write(
             "Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(
                 np.std(list_of_tree_condition_numbers)) + "\n")
@@ -625,13 +646,13 @@ if __name__ == '__main__':
 
         x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
         plt.clf()
-        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning Difference")
-        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
-        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
+        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning", c="c2")
+        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning", c="c0")
+        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning", c="c1")
         plt.legend(loc='best')
-        plt.title("Ratio between Unfolded over True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
+        plt.title("Ratio between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
         plt.xlabel("Run Number")
-        plt.ylabel("Ratio")
+        plt.ylabel("log(Ratio)")
         plt.yscale('log')
         plt.savefig("output/Multiple_Run_Difference_nlog.png")
 
