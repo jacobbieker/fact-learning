@@ -619,7 +619,8 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning", index=4)
         plt.close()
         plt.clf()
-
+        if run > 10:
+            break
 
 
     # Now plotting the different ones for the multiple runs
@@ -633,7 +634,7 @@ if __name__ == '__main__':
     list_of_classic_conditions = remove_nan(list_of_classic_conditions)
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
-    with open("overall_stats.txt", "w") as output:
+    with open("overall_stats2.txt", "w") as output:
         output.write(
             "Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(
                 np.std(list_of_tree_condition_numbers)) + "\n")
@@ -645,11 +646,11 @@ if __name__ == '__main__':
             np.std(list_of_lowest_conditions))+ "\n")
 
         tree_error_real = np.asarray(list_of_mcmc_errors[1])
-        tree_real = np.asarray(list_of_mcmc_errors[0]) / run
+        tree_real = np.asarray(list_of_mcmc_errors[0])
         lowest_error_real = np.asarray(list_of_mcmc_errors[3])
-        lowest_real = np.asarray(list_of_mcmc_errors[2]) / run
+        lowest_real = np.asarray(list_of_mcmc_errors[2])
         closest_error_real = np.asarray(list_of_mcmc_errors[5])
-        closest_real = np.asarray(list_of_mcmc_errors[4]) / run
+        closest_real = np.asarray(list_of_mcmc_errors[4])
 
         list_mcmc_tree = np.asarray(list_mcmc[0])
         list_mcmc_low = np.asarray(list_mcmc[2])
@@ -664,9 +665,9 @@ if __name__ == '__main__':
         print(list_mcmc_tree)
         print(tree_error_real[0])
 
-        tree_raw_off = tree_real
-        closest_raw_off = closest_real
-        lowest_raw_off = lowest_real
+        tree_raw_off = np.mean(tree_real, axis=1)
+        closest_raw_off = np.mean(closest_real, axis=1)
+        lowest_raw_off = np.mean(lowest_real, axis=1)
 
         x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
         plt.clf()
@@ -674,15 +675,15 @@ if __name__ == '__main__':
         plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning Difference")
         plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning Difference")
         plt.legend(loc='best')
-        plt.title("Difference between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
+        plt.title("Ratio between Unfolded over True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
         plt.xlabel("Run Number")
-        plt.ylabel("log(Difference)")
-        plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Difference.png")
+        plt.ylabel("Ratio")
+        #plt.yscale('log')
+        plt.savefig("output/Multiple_Run_Difference_nlog.png")
 
-        output.write("Tree Binning Difference Mean and Std.: " + str(np.mean(tree_real)) + " " + str(np.std(tree_real)) + "\n")
-        output.write("Closest Binning Difference Mean and Std.: " + str(np.mean(closest_real)) + " " + str(np.std(closest_real)) + "\n")
-        output.write("Lowest Binning Difference Mean and Std.: " + str(np.mean(lowest_real)) + " " + str(np.std(lowest_real)) + "\n")
+        output.write("Tree Binning Difference Mean and Std.: " + str(np.mean(tree_real, axis=1)) + " " + str(np.std(tree_real, axis=1)) + "\n")
+        output.write("Closest Binning Difference Mean and Std.: " + str(np.mean(closest_real, axis=1)) + " " + str(np.std(closest_real, axis=1)) + "\n")
+        output.write("Lowest Binning Difference Mean and Std.: " + str(np.mean(lowest_real, axis=1)) + " " + str(np.std(lowest_real, axis=1)) + "\n")
 
         tree_error_real_lower = list_mcmc_tree - tree_error_real
         tree_error_real_upper = tree_error_real - list_mcmc_tree
