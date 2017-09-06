@@ -532,50 +532,6 @@ if __name__ == '__main__':
                 plt.close()
 
             if plot:
-                print('\nMinimize Solution:')
-            llh = ff.solution.StandardLLH(tau=None,
-                                          C='thikonov',
-                                          neg_llh=True)
-            llh.initialize(vec_g=vec_g,
-                           model=model)
-
-            sol_mini = ff.solution.LLHSolutionMinimizer()
-            sol_mini.initialize(llh=llh, model=model)
-            sol_mini.set_x0_and_bounds()
-
-            solution, V_f_est = sol_mini.fit(constrain_N=False)
-            vec_f_est_mini = solution.x
-            str_0 = 'unregularized:'
-            str_1 = ''
-            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            if plot:
-                print('{}\t{}'.format(str_0, str_1))
-
-            if plot:
-                print('\nMinimize Solution (constrained: sum(vec_f) == sum(vec_g)):')
-            solution, V_f_est = sol_mini.fit(constrain_N=True)
-            vec_f_est_mini = solution.x
-            str_0 = 'unregularized:'
-            str_1 = ''
-            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            if plot:
-                print('{}\t{}'.format(str_0, str_1))
-
-            if plot:
-                print('\nMinimize Solution (MCMC as seed):')
-            sol_mini.set_x0_and_bounds(x0=vec_f_est_mcmc)
-            solution, V_f_est = sol_mini.fit(constrain_N=False)
-            vec_f_est_mini = solution.x
-            str_0 = 'unregularized:'
-            str_1 = ''
-            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
-                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
-            if plot:
-                print('{}\t{}'.format(str_0, str_1))
-
-            if plot:
                 corner.corner(samples, truths=vec_f)
                 plt.savefig('corner_truth' + title + '.png')
                 if plot:
@@ -676,12 +632,12 @@ if __name__ == '__main__':
         plt.title("Ratio between Unfolded over True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
         plt.xlabel("Run Number")
         plt.ylabel("Ratio")
-        #plt.yscale('log')
+        plt.yscale('log')
         plt.savefig("output/Multiple_Run_Difference_nlog.png")
 
-        output.write("Tree Binning Difference Mean and Std.: " + str(np.mean(tree_real, axis=1)) + " " + str(np.std(tree_real, axis=1)) + "\n")
-        output.write("Closest Binning Difference Mean and Std.: " + str(np.mean(closest_real, axis=1)) + " " + str(np.std(closest_real, axis=1)) + "\n")
-        output.write("Lowest Binning Difference Mean and Std.: " + str(np.mean(lowest_real, axis=1)) + " " + str(np.std(lowest_real, axis=1)) + "\n")
+        output.write("Tree Binning Difference Mean and Std.:\n" + str(np.mean(tree_real, axis=1)) + "\n" + str(np.std(tree_real, axis=1)) + "\n")
+        output.write("Closest Binning Difference Mean and Std.:\n " + str(np.mean(closest_real, axis=1)) + "\n" + str(np.std(closest_real, axis=1)) + "\n")
+        output.write("Lowest Binning Difference Mean and Std.:\n" + str(np.mean(lowest_real, axis=1)) + "\n" + str(np.std(lowest_real, axis=1)) + "\n")
 
         tree_error_real_lower = list_mcmc_tree - tree_error_real
         tree_error_real_upper = tree_error_real - list_mcmc_tree
