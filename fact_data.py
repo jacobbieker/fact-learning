@@ -619,8 +619,6 @@ if __name__ == '__main__':
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning", index=4)
         plt.close()
         plt.clf()
-        if run > 10:
-            break
 
 
     # Now plotting the different ones for the multiple runs
