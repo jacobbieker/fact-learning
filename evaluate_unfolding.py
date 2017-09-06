@@ -43,10 +43,13 @@ def plot_unfolded_vs_true(unfolded_vector, energies, errors=None, title=None):
     if not title:
         plt.title("Number of Particles: " + str(energies.shape[0]))
     else:
-        plt.title(str(title))
+        plt.yscale('log')
+        #plt.title(str(title))
     plt.legend(loc='best')
     #plt.xscale('log')
     plt.yscale('log')
+    plt.ylabel('Energy [lg(GeV)]')
+    plt.xlabel('Bin Number')
     plt.savefig("errors_mcmc_std_testing_" + str(title) + ".png")
 
 
