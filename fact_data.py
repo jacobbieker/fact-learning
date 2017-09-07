@@ -192,6 +192,10 @@ if __name__ == '__main__':
     list_of_mcmc_errors = [[],[],[],[],[],[]]
     list_true = [[],[],[],[],[],[]]
     list_mcmc = [[],[],[],[],[],[]]
+    list_of_svd_errors = [[],[],[],[],[],[]]
+    list_svd = [[],[],[],[],[],[]]
+    list_of_min_errors = [[],[],[],[],[],[]]
+    list_min = [[],[],[],[],[],[]]
     list_measured = [[],[],[],[],[],[]]
     list_of_acceptance_errors = []
     list_of_tree_condition_numbers = []
@@ -200,7 +204,7 @@ if __name__ == '__main__':
     list_of_lowest_conditions = []
 
     run = 0
-    plot = True
+    plot = False
     for indicies in testing_data:
         run += 1
         print(run)
@@ -467,6 +471,45 @@ if __name__ == '__main__':
             list_mcmc[index].append(vec_f_est_mcmc)
             list_measured[index].append(vec_g)
 
+            svd = ff.solution.SVDSolution()
+            print('\n===========================\nResults for each Bin: Unfolded/True')
+
+            print('\nSVD Solution for diffrent number of kept sigular values:')
+            svd.initialize(model=model, vec_g=vec_g)
+            vec_f_est, V_f_est = svd.fit()
+            for f_i_est, f_i in zip(vec_f_est, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
+
+            difference = np.asarray(vec_f_est) / np.asarray(vec_f)
+            list_of_svd_errors[index].append(difference)
+            list_of_svd_errors[index+1].append(V_f_est)
+            list_svd[index].append(vec_f_est)
+
+            print('\nMinimize Solution:')
+            llh = ff.solution.StandardLLH(tau=None,
+                                          C='thikonov',
+                                          neg_llh=True)
+            llh.initialize(vec_g=vec_g,
+                           model=model)
+
+            sol_mini = ff.solution.LLHSolutionMinimizer()
+            sol_mini.initialize(llh=llh, model=model)
+            sol_mini.set_x0_and_bounds()
+
+            solution, V_f_est = sol_mini.fit(constrain_N=False)
+            vec_f_est_mini = solution.x
+            str_0 = 'unregularized:'
+            str_1 = ''
+            for f_i_est, f_i in zip(vec_f_est_mini, vec_f):
+                str_1 += '{0:.2f}\t'.format(f_i_est / f_i)
+            print('{}\t{}'.format(str_0, str_1))
+
+            difference = np.asarray(vec_f_est_mini) / np.asarray(vec_f)
+            list_of_min_errors[index].append(difference)
+            list_of_min_errors[index+1].append(V_f_est)
+            list_min[index].append(vec_f_est_mcmc)
+
             # Every third one is of the same type
 
             if plot:
@@ -487,7 +530,7 @@ if __name__ == '__main__':
                 plt.clf()
 
 
-        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning Regularized", tau=0.1, index=0)
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning" + str(run), index=0)
 
         # Now have the tree binning response matrix, need classic binning ones
 
@@ -511,12 +554,12 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
         plt.clf()
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning Regularized", tau=0.1, index=2)
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning" + str(run), index=2)
         plt.clf()
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning Regularized", tau=0.1, index=4)
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning" + str(run), index=4)
         plt.close()
         plt.clf()
-        if run > 12:
+        if run > 49:
             break
 
 
@@ -531,7 +574,7 @@ if __name__ == '__main__':
     list_of_classic_conditions = remove_nan(list_of_classic_conditions)
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
-    with open("overall_stats_reg.txt", "w") as output:
+    with open("overall_stats_all.txt", "w") as output:
         x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0])
         plt.clf()
         plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
@@ -598,11 +641,39 @@ if __name__ == '__main__':
         plt.xlabel("Run Number")
         plt.ylabel("log(Ratio)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Difference_Reg.png")
+        plt.savefig("output/Multiple_Run_Difference.png")
+
+        list_svd_tree = np.asarray(list_of_svd_errors[0])
+        list_svd_low = np.asarray(list_of_svd_errors[2])
+        list_svd_close = np.asarray(list_of_svd_errors[4])
+
+        list_min_tree = np.asarray(list_of_min_errors[0])
+        list_min_low = np.asarray(list_of_min_errors[2])
+        list_min_close = np.asarray(list_of_min_errors[4])
+
+        output.write("Tree Binning Overall Difference Mean and Std.:\n" + str(np.mean(tree_real)) + "\n" + str(np.std(tree_real)) + "\n")
+        output.write("Closest Binning Overall Difference Mean and Std.:\n " + str(np.mean(closest_real)) + "\n" + str(np.std(closest_real)) + "\n")
+        output.write("Lowest Binning Overall Difference Mean and Std.:\n" + str(np.mean(lowest_real)) + "\n" + str(np.std(lowest_real)) + "\n")
+
+        output.write("Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_svd_tree)) + "\n" + str(np.std(list_svd_tree)) + "\n")
+        output.write("Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.mean(list_svd_close)) + "\n" + str(np.std(list_svd_close)) + "\n")
+        output.write("Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_svd_low)) + "\n" + str(np.std(list_svd_low)) + "\n")
+
+        output.write("Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_min_tree)) + "\n" + str(np.std(list_min_tree)) + "\n")
+        output.write("Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.mean(list_min_close)) + "\n" + str(np.std(list_min_close)) + "\n")
+        output.write("Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_min_low)) + "\n" + str(np.std(list_min_low)) + "\n")
 
         output.write("Tree Binning Difference Mean and Std.:\n" + str(np.mean(tree_real, axis=1)) + "\n" + str(np.std(tree_real, axis=1)) + "\n")
         output.write("Closest Binning Difference Mean and Std.:\n " + str(np.mean(closest_real, axis=1)) + "\n" + str(np.std(closest_real, axis=1)) + "\n")
         output.write("Lowest Binning Difference Mean and Std.:\n" + str(np.mean(lowest_real, axis=1)) + "\n" + str(np.std(lowest_real, axis=1)) + "\n")
+
+        output.write("Tree Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_svd_tree, axis=1)) + "\n" + str(np.std(list_svd_tree, axis=1)) + "\n")
+        output.write("Closest Binning Difference SVD Mean and Std.:\n " + str(np.mean(list_svd_close, axis=1)) + "\n" + str(np.std(list_svd_close, axis=1)) + "\n")
+        output.write("Lowest Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_svd_low, axis=1)) + "\n" + str(np.std(list_svd_low, axis=1)) + "\n")
+
+        output.write("Tree Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_min_tree, axis=1)) + "\n" + str(np.std(list_min_tree, axis=1)) + "\n")
+        output.write("Closest Binning Difference SVD Mean and Std.:\n " + str(np.mean(list_min_close, axis=1)) + "\n" + str(np.std(list_min_close, axis=1)) + "\n")
+        output.write("Lowest Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_min_low, axis=1)) + "\n" + str(np.std(list_min_low, axis=1)) + "\n")
 
         tree_error_real_lower = list_mcmc_tree - tree_error_real
         tree_error_real_upper = tree_error_real - list_mcmc_tree
