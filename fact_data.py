@@ -189,14 +189,17 @@ if __name__ == '__main__':
 
     # Generator so go through it calling the events each time
 
-    list_of_mcmc_errors = [[],[],[],[],[],[]]
-    list_true = [[],[],[],[],[],[]]
-    list_mcmc = [[],[],[],[],[],[]]
-    list_of_svd_errors = [[],[],[],[],[],[]]
-    list_svd = [[],[],[],[],[],[]]
-    list_of_min_errors = [[],[],[],[],[],[]]
-    list_min = [[],[],[],[],[],[]]
-    list_measured = [[],[],[],[],[],[]]
+    list_of_mcmc_errors = [[], [], [], [], [], []]
+    list_true = [[], [], [], [], [], []]
+    list_mcmc = [[], [], [], [], [], []]
+    list_of_svd_errors = [[], [], [], [], [], []]
+    list_svd = [[], [], [], [], [], []]
+    list_of_min_errors = [[], [], [], [], [], []]
+    list_min = [[], [], [], [], [], []]
+    list_measured = [[], [], [], [], [], []]
+    list_of_pdf_errors = [[], [], [], [], [], []]
+    list_pdf = [[], [], [], [], [], []]
+    list_pdf_error = [[], [], [], [], [], []]
     list_of_acceptance_errors = []
     list_of_tree_condition_numbers = []
     list_of_classic_conditions = []
@@ -204,7 +207,7 @@ if __name__ == '__main__':
     list_of_lowest_conditions = []
 
     run = 0
-    plot = False
+    plot = True
     for indicies in testing_data:
         run += 1
         print(run)
@@ -254,11 +257,31 @@ if __name__ == '__main__':
         binning_energy = np.linspace(2.3, 4.7, real_bins)
         binning_detected = np.linspace(2.3, 4.7, signal_bins)
 
+        binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
+
+        true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
+        true_pdf = true_counted_bin / np.sum(true_counted_bin)
+        true_pdf *= real_energy_test.shape
+        true_pdf = np.ceil(true_pdf)
+        true_pdf = np.int64(true_pdf)
+
+
         binned_E_validate = np.digitize(real_energy_detector, binning_energy)
         binned_E_train = np.digitize(real_energy_tree, binning_detected)
 
         binned_E_test_validate = np.digitize(real_energy_test, binning_energy)
 
+        detector_true_counted_bin = np.bincount(binned_E_validate)
+
+        pdf_digitized = np.repeat(np.arange(true_pdf.size), true_pdf)
+        diff_between_pdf_true = pdf_digitized.size - real_energy_test.size
+        if diff_between_pdf_true < 0:
+            pdf_digitized = np.append(pdf_digitized, np.zeros(shape=diff_between_pdf_true))
+        elif diff_between_pdf_true > 0:
+            indicies = np.arange(0, diff_between_pdf_true, step=1)
+            pdf_digitized = np.delete(pdf_digitized, indicies)
+        print(pdf_digitized.shape)
+        print(binned_E_test_validate.shape)
         threshold = 1000
 
         tree_binning = ff.binning.TreeBinningSklearn(
@@ -333,23 +356,31 @@ if __name__ == '__main__':
         lowest_singular_values = lowest_singular_values / max(lowest_singular_values)
         classic_singular_values = classic_singular_values / max(classic_singular_values)
 
-        step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0])
-        step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0])
-        step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0])
-        step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0])
+        step_function_x_c = np.linspace(0, closest_singular_values.shape[0], closest_singular_values.shape[0]+1)
+        step_function_x_l = np.linspace(0, lowest_singular_values.shape[0], lowest_singular_values.shape[0]+1)
+        step_function_x_t = np.linspace(0, tree_singular_values.shape[0], tree_singular_values.shape[0]+1)
+        step_function_x_class = np.linspace(0, classic_singular_values.shape[0], classic_singular_values.shape[0]+1)
 
         list_of_tree_condition_numbers.append(1.0 / min(tree_singular_values))
         list_of_classic_conditions.append(1.0 / min(classic_singular_values))
         list_of_closest_conditions.append(1.0 / min(closest_singular_values))
         list_of_lowest_conditions.append(1.0 / min(lowest_singular_values))
+        bin_width_c = (step_function_x_c[1:] - step_function_x_c[:-1]) / 2.
+        bin_center_c = (step_function_x_c[:-1] + step_function_x_c[1:]) / 2.
+        bin_width_l = (step_function_x_l[1:] - step_function_x_l[:-1]) / 2.
+        bin_center_l = (step_function_x_l[:-1] + step_function_x_l[1:]) / 2.
+        bin_width_t = (step_function_x_t[1:] - step_function_x_t[:-1]) / 2.
+        bin_center_t = (step_function_x_t[:-1] + step_function_x_t[1:]) / 2.
+        bin_width_class = (step_function_x_class[1:] - step_function_x_class[:-1]) / 2.
+        bin_center_class = (step_function_x_class[:-1] + step_function_x_class[1:]) / 2.
         if plot:
-            plt.step(step_function_x_c, closest_singular_values, where="mid",
+            plt.hist(bin_center_c, bins=step_function_x_c, weights=closest_singular_values, histtype='step',
                      label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
-            plt.step(step_function_x_l, lowest_singular_values, where="mid",
+            plt.hist(bin_center_l, bins=step_function_x_l, weights=lowest_singular_values, histtype='step',
                      label="Lowest Binning (k: " + str(1.0 / min(lowest_singular_values)))
-            plt.step(step_function_x_t, tree_singular_values, where="mid",
+            plt.hist(bin_center_t, bins=step_function_x_t, weights=tree_singular_values, histtype='step',
                      label="Tree Binning (k: " + str(1.0 / min(tree_singular_values)))
-            plt.step(step_function_x_class, classic_singular_values, where="mid",
+            plt.hist(bin_center_class, bins=step_function_x_class, weights=classic_singular_values, histtype='step',
                      label="Classic Binning (k: " + str(1.0 / min(classic_singular_values)))
             plt.xlabel("Singular Value Number")
             plt.legend(loc="best")
@@ -411,11 +442,6 @@ if __name__ == '__main__':
             logged_truth=True,
         )
 
-        binned_E_true_validate = np.digitize(true_total_energy, binning_energy)
-
-        true_counted_bin = np.histogram(true_total_energy, bins=binning_energy)[0]
-        detector_true_counted_bin = np.bincount(binned_E_validate)
-
         acceptance_vector_true = true_counted_bin / vec_f
 
         acceptance_difference = acceptance_vector_true / vec_acceptance
@@ -432,12 +458,19 @@ if __name__ == '__main__':
         plt.clf()
 
 
-        def test_different_binnings(observed_energy, true_energy, title, tau=None, acceptance_vector=None, log_f=True, index=0):
+        def test_different_binnings(observed_energy, true_energy, title, pdf_truth, tau=None, acceptance_vector=None,
+                                    log_f=True, index=0):
             model = ff.model.LinearModel()
             model.initialize(digitized_obs=observed_energy,
                              digitized_truth=true_energy)
 
             vec_g, vec_f = model.generate_vectors(observed_energy, true_energy)
+
+            pdf_model = ff.model.LinearModel()
+            pdf_model.initialize(digitized_obs=observed_energy,
+                                 digitized_truth=pdf_truth)
+
+            pdf_g, pdf_f = pdf_model.generate_vectors(observed_energy, pdf_truth)
 
             if plot:
                 print('\nMCMC Solution: (constrained: sum(vec_f) == sum(vec_g)) : (FIRST RUN)')
@@ -447,8 +480,18 @@ if __name__ == '__main__':
                                           C='thikonov',
                                           log_f=log_f,
                                           neg_llh=False)
+
+            pdf_llh = ff.solution.StandardLLH(tau=tau,
+                                              vec_acceptance=acceptance_vector,
+                                              C='thikonov',
+                                              log_f=log_f,
+                                              neg_llh=False)
+
             llh.initialize(vec_g=vec_g,
                            model=model)
+
+            pdf_llh.initialize(vec_g=pdf_g,
+                              model=pdf_model)
 
             sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=4000,
                                                    n_threads=4,
@@ -466,10 +509,21 @@ if __name__ == '__main__':
             # Get the mean error
             difference = np.asarray(vec_f_est_mcmc) / np.asarray(vec_f)
             list_of_mcmc_errors[index].append(difference)
-            list_of_mcmc_errors[index+1].append(sigma_vec_f)
+            list_of_mcmc_errors[index + 1].append(sigma_vec_f)
             list_true[index].append(vec_f)
             list_mcmc[index].append(vec_f_est_mcmc)
             list_measured[index].append(vec_g)
+
+            sol_mcmc.initialize(llh=pdf_llh, model=pdf_model)
+            sol_mcmc.set_x0_and_bounds()
+            vec_f_est_mcmc, sigma_vec_f, samples, probs = sol_mcmc.fit()
+            str_0 = 'unregularized:'
+            str_1 = ''
+
+            difference = np.asarray(pdf_f) - np.asarray(vec_f_est_mcmc)
+            list_of_pdf_errors[index].append(difference)
+            list_of_pdf_errors[index + 1].append(sigma_vec_f)
+            list_pdf[index].append(vec_f_est_mcmc)
 
             svd = ff.solution.SVDSolution()
             print('\n===========================\nResults for each Bin: Unfolded/True')
@@ -483,7 +537,7 @@ if __name__ == '__main__':
 
             difference = np.asarray(vec_f_est) / np.asarray(vec_f)
             list_of_svd_errors[index].append(difference)
-            list_of_svd_errors[index+1].append(V_f_est)
+            list_of_svd_errors[index + 1].append(V_f_est)
             list_svd[index].append(vec_f_est)
 
             print('\nMinimize Solution:')
@@ -507,7 +561,7 @@ if __name__ == '__main__':
 
             difference = np.asarray(vec_f_est_mini) / np.asarray(vec_f)
             list_of_min_errors[index].append(difference)
-            list_of_min_errors[index+1].append(V_f_est)
+            list_of_min_errors[index + 1].append(V_f_est)
             list_min[index].append(vec_f_est_mcmc)
 
             # Every third one is of the same type
@@ -530,7 +584,7 @@ if __name__ == '__main__':
                 plt.clf()
 
 
-        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning" + str(run), index=0)
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning" + str(run), pdf_truth=pdf_digitized, index=0)
 
         # Now have the tree binning response matrix, need classic binning ones
 
@@ -554,20 +608,21 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
         plt.clf()
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning" + str(run), index=2)
+        test_different_binnings(digitized_lowest, binned_E_test_validate,"Lowest Binning" + str(run), pdf_truth=pdf_digitized, index=2)
         plt.clf()
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning" + str(run), index=4)
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning" + str(run), pdf_truth=pdf_digitized, index=4)
         plt.close()
         plt.clf()
-        if run > 49:
+        if run > 2:
             break
 
 
     # Now plotting the different ones for the multiple runs
     def remove_nan(inputdta):
         inputdta = np.asarray(inputdta)
-        #inputdta = inputdta[~np.isnan(inputdta)]
+        # inputdta = inputdta[~np.isnan(inputdta)]
         return inputdta
+
 
     list_of_acceptance_errors = remove_nan(list_of_acceptance_errors)
     list_of_tree_condition_numbers = remove_nan(list_of_tree_condition_numbers)
@@ -576,36 +631,35 @@ if __name__ == '__main__':
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
     with open("overall_stats_all.txt", "w") as output:
         x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0])
+        bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
+        bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
         plt.clf()
-        plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
-        plt.step(x_raw_off, list_of_lowest_conditions, where="mid", label="Lowest Binning")
-        plt.step(x_raw_off, list_of_tree_condition_numbers, where="mid", label="Tree Binning")
-        plt.step(x_raw_off, list_of_classic_conditions, where="mid", label="Classic Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=list_of_closest_conditions, histtype='step',
+                 label="Closest Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=list_of_lowest_conditions, histtype='step', label="Lowest Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=list_of_tree_condition_numbers, histtype='step',
+                 label="Tree Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=list_of_classic_conditions, histtype='step',
+                 label="Classic Binning")
         plt.legend(loc='best')
         plt.title("Condition Numbers For " + str(list_of_tree_condition_numbers.shape[0]) + " Runs")
         plt.xlabel("Run Number")
         plt.ylabel("log(Condition)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Condition_Reg.png")
+        plt.savefig("output/Multiple_Run_Condition.png")
         plt.clf()
-        plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
-        plt.step(x_raw_off, list_of_lowest_conditions, where="mid", label="Lowest Binning")
-        plt.step(x_raw_off, list_of_tree_condition_numbers, where="mid", label="Tree Binning")
-        plt.legend(loc='best')
-        plt.title("Condition Numbers For " + str(list_of_tree_condition_numbers.shape[0]) + " Runs")
-        plt.xlabel("Run Number")
-        plt.ylabel("log(Condition)")
-        plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Condition_noclassic_Reg.png")
         output.write(
-            "Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(
-                np.std(list_of_tree_condition_numbers)) + "\n")
-        output.write("Classic Binning Condition Mean and Std.: " + str(np.mean(list_of_classic_conditions)) + " " + str(
-            np.std(list_of_classic_conditions))+ "\n")
-        output.write("Closest Binning Condition Mean and Std.: " + str(np.mean(list_of_closest_conditions)) + " " + str(
-            np.std(list_of_closest_conditions))+ "\n")
-        output.write("Lowest Binning Condition Mean and Std.: " + str(np.mean(list_of_lowest_conditions)) + " " + str(
-            np.std(list_of_lowest_conditions))+ "\n")
+            "Tree Binning Condition Mean and Std.: " + str(np.nanmean(list_of_tree_condition_numbers)) + " " + str(
+                np.nanstd(list_of_tree_condition_numbers)) + "\n")
+        output.write(
+            "Classic Binning Condition Mean and Std.: " + str(np.nanmean(list_of_classic_conditions)) + " " + str(
+                np.nanstd(list_of_classic_conditions)) + "\n")
+        output.write(
+            "Closest Binning Condition Mean and Std.: " + str(np.nanmean(list_of_closest_conditions)) + " " + str(
+                np.nanstd(list_of_closest_conditions)) + "\n")
+        output.write(
+            "Lowest Binning Condition Mean and Std.: " + str(np.nanmean(list_of_lowest_conditions)) + " " + str(
+                np.nanstd(list_of_lowest_conditions)) + "\n")
 
         tree_error_real = np.asarray(list_of_mcmc_errors[1])
         tree_real = np.asarray(list_of_mcmc_errors[0])
@@ -614,6 +668,13 @@ if __name__ == '__main__':
         closest_error_real = np.asarray(list_of_mcmc_errors[5])
         closest_real = np.asarray(list_of_mcmc_errors[4])
 
+        tree_error_real_pdf = np.asarray(list_of_pdf_errors[1])
+        tree_real_pdf = np.asarray(list_of_pdf_errors[0])
+        lowest_error_real_pdf = np.asarray(list_of_pdf_errors[3])
+        lowest_real_pdf = np.asarray(list_of_pdf_errors[2])
+        closest_error_real_pdf = np.asarray(list_of_pdf_errors[5])
+        closest_real_pdf = np.asarray(list_of_pdf_errors[4])
+
         list_mcmc_tree = np.asarray(list_mcmc[0])
         list_mcmc_low = np.asarray(list_mcmc[2])
         list_mcmc_close = np.asarray(list_mcmc[4])
@@ -621,27 +682,63 @@ if __name__ == '__main__':
         list_true_low = np.asarray(list_true[2])
         list_true_close = np.asarray(list_true[4])
 
-    # Plot the mean fitting vs the mean data for Tree, Closest, Lowest
+        # Plot the mean fitting vs the mean data for Tree, Closest, Lowest
 
         print(list_mcmc[0])
         print(list_mcmc_tree)
         print(tree_error_real[0])
 
-        tree_raw_off = np.mean(tree_real, axis=1)
-        closest_raw_off = np.mean(closest_real, axis=1)
-        lowest_raw_off = np.mean(lowest_real, axis=1)
+        tree_raw_off = np.nanmean(tree_real, axis=1)
+        closest_raw_off = np.nanmean(closest_real, axis=1)
+        lowest_raw_off = np.nanmean(lowest_real, axis=1)
 
         x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+        bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
+        bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
         plt.clf()
-        plt.step(x_raw_off, closest_raw_off, where="mid", label="Closest Binning")
-        plt.step(x_raw_off, lowest_raw_off, where="mid", label="Lowest Binning")
-        plt.step(x_raw_off, tree_raw_off, where="mid", label="Tree Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=closest_raw_off, histtype='step', label="Closest Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=lowest_raw_off, histtype='step', label="Lowest Binning")
+        plt.hist(bin_center, bins=x_raw_off, weights=tree_raw_off, histtype='step', label="Tree Binning")
         plt.legend(loc='best')
         plt.title("Ratio between Unfolded and True Spectrum For " + str(tree_raw_off.shape[0]) + " Runs")
         plt.xlabel("Run Number")
         plt.ylabel("log(Ratio)")
         plt.yscale('log')
         plt.savefig("output/Multiple_Run_Difference.png")
+        plt.clf()
+
+        tree_raw_off = np.nanmean(tree_real_pdf, axis=0)
+        closest_raw_off = np.nanmean(closest_real_pdf, axis=0)
+        lowest_raw_off = np.nanmean(lowest_real_pdf, axis=0)
+
+        tree_raw_off_std = np.nanstd(tree_real_pdf, axis=0)
+        closest_raw_off_std = np.nanstd(closest_real_pdf, axis=0)
+        lowest_raw_off_std = np.nanstd(lowest_real_pdf, axis=0)
+
+        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+        bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
+        bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
+        plt.clf()
+        plt.errorbar(x=bin_center, y=closest_raw_off, fmt='.', yerr=closest_raw_off_std, xerr=bin_width, label="Closest Binning")
+        plt.errorbar(x=bin_center, y=lowest_raw_off, fmt='.', yerr=lowest_raw_off_std, xerr=bin_width, label="Lowest Binning")
+        plt.errorbar(x=bin_center, y=tree_raw_off, fmt='.', yerr=tree_raw_off_std, xerr=bin_width, label="Tree Binning")
+        plt.legend(loc='best')
+        plt.title("PDF - Unfolded / Error For " + str(tree_raw_off.shape[0]) + " Runs")
+        plt.xlabel("Bin Number")
+        plt.ylabel("log((True - Unf) / Error)")
+        plt.yscale('log')
+        plt.savefig("output/Multiple_Run_PDF_mean.png")
+        plt.clf()
+
+        '''
+        Mean over the runs so bin mean, 9 bins on bottom, and mean of those is each one
+        True PDF: Take whole monteCarl set, normalize it, and use that as the true value, get unfolding with that
+        true - unfolding / error for true PDF
+        unfolding / True for mean of the bins
+        Redo bins to have ends, hist with bin center and weights as the values
+        The one of true_pdf - unflding -> if have 0 and width of 1, perfect and not biased. If width less than one, overcovered error
+        
+        '''
 
         list_svd_tree = np.asarray(list_of_svd_errors[0])
         list_svd_low = np.asarray(list_of_svd_errors[2])
@@ -651,56 +748,88 @@ if __name__ == '__main__':
         list_min_low = np.asarray(list_of_min_errors[2])
         list_min_close = np.asarray(list_of_min_errors[4])
 
-        output.write("Tree Binning Overall Difference Mean and Std.:\n" + str(np.mean(tree_real)) + "\n" + str(np.std(tree_real)) + "\n")
-        output.write("Closest Binning Overall Difference Mean and Std.:\n " + str(np.mean(closest_real)) + "\n" + str(np.std(closest_real)) + "\n")
-        output.write("Lowest Binning Overall Difference Mean and Std.:\n" + str(np.mean(lowest_real)) + "\n" + str(np.std(lowest_real)) + "\n")
+        output.write("Tree Binning Overall Difference Mean and Std.:\n" + str(np.nanmean(tree_real)) + "\n" + str(
+            np.nanstd(tree_real)) + "\n")
+        output.write(
+            "Closest Binning Overall Difference Mean and Std.:\n " + str(np.nanmean(closest_real)) + "\n" + str(
+                np.nanstd(closest_real)) + "\n")
+        output.write("Lowest Binning Overall Difference Mean and Std.:\n" + str(np.nanmean(lowest_real)) + "\n" + str(
+            np.nanstd(lowest_real)) + "\n")
 
-        output.write("Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_svd_tree)) + "\n" + str(np.std(list_svd_tree)) + "\n")
-        output.write("Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.mean(list_svd_close)) + "\n" + str(np.std(list_svd_close)) + "\n")
-        output.write("Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_svd_low)) + "\n" + str(np.std(list_svd_low)) + "\n")
+        output.write(
+            "Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_svd_tree)) + "\n" + str(
+                np.nanstd(list_svd_tree)) + "\n")
+        output.write(
+            "Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.nanmean(list_svd_close)) + "\n" + str(
+                np.nanstd(list_svd_close)) + "\n")
+        output.write(
+            "Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_svd_low)) + "\n" + str(
+                np.nanstd(list_svd_low)) + "\n")
 
-        output.write("Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_min_tree)) + "\n" + str(np.std(list_min_tree)) + "\n")
-        output.write("Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.mean(list_min_close)) + "\n" + str(np.std(list_min_close)) + "\n")
-        output.write("Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.mean(list_min_low)) + "\n" + str(np.std(list_min_low)) + "\n")
+        output.write(
+            "Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_min_tree)) + "\n" + str(
+                np.nanstd(list_min_tree)) + "\n")
+        output.write(
+            "Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.nanmean(list_min_close)) + "\n" + str(
+                np.nanstd(list_min_close)) + "\n")
+        output.write(
+            "Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_min_low)) + "\n" + str(
+                np.nanstd(list_min_low)) + "\n")
 
-        output.write("Tree Binning Difference Mean and Std.:\n" + str(np.mean(tree_real, axis=1)) + "\n" + str(np.std(tree_real, axis=1)) + "\n")
-        output.write("Closest Binning Difference Mean and Std.:\n " + str(np.mean(closest_real, axis=1)) + "\n" + str(np.std(closest_real, axis=1)) + "\n")
-        output.write("Lowest Binning Difference Mean and Std.:\n" + str(np.mean(lowest_real, axis=1)) + "\n" + str(np.std(lowest_real, axis=1)) + "\n")
+        output.write("Tree Binning Difference Mean and Std.:\n" + str(np.nanmean(tree_real, axis=1)) + "\n" + str(
+            np.nanstd(tree_real, axis=1)) + "\n")
+        output.write(
+            "Closest Binning Difference Mean and Std.:\n " + str(np.nanmean(closest_real, axis=1)) + "\n" + str(
+                np.nanstd(closest_real, axis=1)) + "\n")
+        output.write("Lowest Binning Difference Mean and Std.:\n" + str(np.nanmean(lowest_real, axis=1)) + "\n" + str(
+            np.nanstd(lowest_real, axis=1)) + "\n")
 
-        output.write("Tree Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_svd_tree, axis=1)) + "\n" + str(np.std(list_svd_tree, axis=1)) + "\n")
-        output.write("Closest Binning Difference SVD Mean and Std.:\n " + str(np.mean(list_svd_close, axis=1)) + "\n" + str(np.std(list_svd_close, axis=1)) + "\n")
-        output.write("Lowest Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_svd_low, axis=1)) + "\n" + str(np.std(list_svd_low, axis=1)) + "\n")
+        output.write(
+            "Tree Binning Difference SVD Mean and Std.:\n" + str(np.nanmean(list_svd_tree, axis=1)) + "\n" + str(
+                np.nanstd(list_svd_tree, axis=1)) + "\n")
+        output.write(
+            "Closest Binning Difference SVD Mean and Std.:\n " + str(np.nanmean(list_svd_close, axis=1)) + "\n" + str(
+                np.nanstd(list_svd_close, axis=1)) + "\n")
+        output.write(
+            "Lowest Binning Difference SVD Mean and Std.:\n" + str(np.nanmean(list_svd_low, axis=1)) + "\n" + str(
+                np.nanstd(list_svd_low, axis=1)) + "\n")
 
-        output.write("Tree Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_min_tree, axis=1)) + "\n" + str(np.std(list_min_tree, axis=1)) + "\n")
-        output.write("Closest Binning Difference SVD Mean and Std.:\n " + str(np.mean(list_min_close, axis=1)) + "\n" + str(np.std(list_min_close, axis=1)) + "\n")
-        output.write("Lowest Binning Difference SVD Mean and Std.:\n" + str(np.mean(list_min_low, axis=1)) + "\n" + str(np.std(list_min_low, axis=1)) + "\n")
+        output.write(
+            "Tree Binning Difference Min Mean and Std.:\n" + str(np.nanmean(list_min_tree, axis=1)) + "\n" + str(
+                np.nanstd(list_min_tree, axis=1)) + "\n")
+        output.write(
+            "Closest Binning Difference Min Mean and Std.:\n " + str(np.nanmean(list_min_close, axis=1)) + "\n" + str(
+                np.nanstd(list_min_close, axis=1)) + "\n")
+        output.write(
+            "Lowest Binning Difference Min Mean and Std.:\n" + str(np.nanmean(list_min_low, axis=1)) + "\n" + str(
+                np.nanstd(list_min_low, axis=1)) + "\n")
 
         tree_error_real_lower = list_mcmc_tree - tree_error_real
         tree_error_real_upper = tree_error_real - list_mcmc_tree
 
         output.write(
-            "Tree Binning MCMC Error Lower Mean and Std.: " + str(np.mean(tree_error_real_lower)) + " " + str(
-                np.std(tree_error_real_lower))+ "\n")
+            "Tree Binning MCMC Error Lower Mean and Std.: " + str(np.nanmean(tree_error_real_lower)) + " " + str(
+                np.nanstd(tree_error_real_lower)) + "\n")
         output.write(
-            "Tree Binning MCMC Error Upper Mean and Std.: " + str(np.mean(tree_error_real_upper)) + " " + str(
-                np.std(tree_error_real_upper))+ "\n")
+            "Tree Binning MCMC Error Upper Mean and Std.: " + str(np.nanmean(tree_error_real_upper)) + " " + str(
+                np.nanstd(tree_error_real_upper)) + "\n")
 
         closest_error_real_lower = list_mcmc_close - closest_error_real[0]
         closest_error_real_upper = closest_error_real[1] - list_mcmc_close
 
         output.write(
-            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(closest_error_real_lower)) + " " + str(
-                np.std(closest_error_real_lower))+ "\n")
+            "Closest Binning MCMC Error Lower Mean and Std.: " + str(np.nanmean(closest_error_real_lower)) + " " + str(
+                np.nanstd(closest_error_real_lower)) + "\n")
         output.write(
-            "Closest Binning MCMC Error Upper Mean and Std.: " + str(np.mean(closest_error_real_upper)) + " " + str(
-                np.std(closest_error_real_upper))+ "\n")
+            "Closest Binning MCMC Error Upper Mean and Std.: " + str(np.nanmean(closest_error_real_upper)) + " " + str(
+                np.nanstd(closest_error_real_upper)) + "\n")
 
         lowest_error_real_lower = list_mcmc_low - lowest_error_real[0]
         lowest_error_real_upper = lowest_error_real[1] - list_mcmc_low
 
         output.write(
-            "Lowest Binning MCMC Error Lower Mean and Std.: " + str(np.mean(lowest_error_real_lower)) + " " + str(
-                np.std(lowest_error_real_lower))+ "\n")
+            "Lowest Binning MCMC Error Lower Mean and Std.: " + str(np.nanmean(lowest_error_real_lower)) + " " + str(
+                np.nanstd(lowest_error_real_lower)) + "\n")
         output.write(
-            "Lowest Binning MCMC Error Upper Mean and Std.: " + str(np.mean(lowest_error_real_upper)) + " " + str(
-                np.std(lowest_error_real_upper))+ "\n")
+            "Lowest Binning MCMC Error Upper Mean and Std.: " + str(np.nanmean(lowest_error_real_upper)) + " " + str(
+                np.nanstd(lowest_error_real_upper)) + "\n")
