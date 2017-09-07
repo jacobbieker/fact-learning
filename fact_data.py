@@ -374,6 +374,7 @@ if __name__ == '__main__':
         bin_width_class = (step_function_x_class[1:] - step_function_x_class[:-1]) / 2.
         bin_center_class = (step_function_x_class[:-1] + step_function_x_class[1:]) / 2.
         if plot:
+            plt.clf()
             plt.hist(bin_center_c, bins=step_function_x_c, weights=closest_singular_values, histtype='step',
                      label="Closest Binning (k: " + str(1.0 / min(closest_singular_values)))
             plt.hist(bin_center_l, bins=step_function_x_l, weights=lowest_singular_values, histtype='step',
@@ -387,9 +388,6 @@ if __name__ == '__main__':
             plt.yscale('log')
             plt.savefig("output/Singular_Values_" + str(run) + ".png")
             plt.clf()
-
-            # Blobel Thing
-            fig, ax = plt.subplots()
 
         linear_binning_model.initialize(digitized_obs=binned_g_validate,
                                         digitized_truth=binned_E_validate)
@@ -570,11 +568,12 @@ if __name__ == '__main__':
                 plt.clf()
                 evaluate_unfolding.plot_unfolded_vs_true(vec_f_est_mcmc, vec_f, sigma_vec_f,
                                                          title=str(title + "_" + str(run)))
-                plt.close()
+                plt.clf()
 
             if plot:
                 corner.corner(samples, truths=vec_f)
                 plt.savefig('corner_truth' + title + '.png')
+                plt.clf()
                 if plot:
                     print(np.sum(vec_f_est_mcmc))
 
@@ -583,7 +582,7 @@ if __name__ == '__main__':
                 plt.savefig('corner_mcmc' + title + '.eps', format='eps', dpi=1000)
                 plt.clf()
 
-
+        plt.clf()
         test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning" + str(run), pdf_truth=pdf_digitized, index=0)
 
         # Now have the tree binning response matrix, need classic binning ones
@@ -611,7 +610,6 @@ if __name__ == '__main__':
         test_different_binnings(digitized_lowest, binned_E_test_validate,"Lowest Binning" + str(run), pdf_truth=pdf_digitized, index=2)
         plt.clf()
         test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning" + str(run), pdf_truth=pdf_digitized, index=4)
-        plt.close()
         plt.clf()
         if run > 2:
             break
@@ -630,7 +628,7 @@ if __name__ == '__main__':
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
     with open("overall_stats_all.txt", "w") as output:
-        x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0])
+        x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0]+1)
         bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
         bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
         plt.clf()
@@ -692,7 +690,7 @@ if __name__ == '__main__':
         closest_raw_off = np.nanmean(closest_real, axis=1)
         lowest_raw_off = np.nanmean(lowest_real, axis=1)
 
-        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0]+1)
         bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
         bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
         plt.clf()
@@ -707,13 +705,45 @@ if __name__ == '__main__':
         plt.savefig("output/Multiple_Run_Difference.png")
         plt.clf()
 
+        tree_raw_off = np.nanmean(tree_real, axis=0)
+        closest_raw_off = np.nanmean(closest_real, axis=0)
+        lowest_raw_off = np.nanmean(lowest_real, axis=0)
+
+        tree_raw_off_std = np.nanstd(tree_real, axis=0)
+        closest_raw_off_std = np.nanstd(closest_real, axis=0)
+        lowest_raw_off_std = np.nanstd(lowest_real, axis=0)
+
+        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0]+1)
+        bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
+        bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
+        plt.clf()
+        plt.errorbar(x=bin_center, y=closest_raw_off, fmt='.', yerr=closest_raw_off_std, xerr=bin_width, label="Closest Binning")
+        plt.errorbar(x=bin_center, y=lowest_raw_off, fmt='.', yerr=lowest_raw_off_std, xerr=bin_width, label="Lowest Binning")
+        plt.errorbar(x=bin_center, y=tree_raw_off, fmt='.', yerr=tree_raw_off_std, xerr=bin_width, label="Tree Binning")
+        plt.legend(loc='best')
+        plt.title("PDF - Unfolded / Error For " + str(tree_raw_off.shape[0]) + " Runs")
+        plt.xlabel("Bin Number")
+        plt.ylabel("log((True - Unf) / Error)")
+        plt.yscale('log')
+        plt.savefig("output/Multiple_Run_mean.png")
+        plt.clf()
+
+
+        tree_error_pdf = [[],[]]
+        print(tree_error_real_pdf)
+        print("\n")
+        print(tree_error_real_pdf[0])
+
+        tree_error_pdf[0] = tree_real_pdf - tree_error_real_pdf[0]
+        tree_error_pdf[1] = tree_error_real_pdf[1] - tree_real_pdf
+
         tree_raw_off = np.nanmean(tree_real_pdf, axis=0)
         closest_raw_off = np.nanmean(closest_real_pdf, axis=0)
-        lowest_raw_off = np.nanmean(lowest_real_pdf, axis=0)
+        lowest_raw_off = np.nanmean(lowest_real, axis=0)
 
-        tree_raw_off_std = np.nanstd(tree_real_pdf, axis=0)
-        closest_raw_off_std = np.nanstd(closest_real_pdf, axis=0)
-        lowest_raw_off_std = np.nanstd(lowest_real_pdf, axis=0)
+        tree_raw_off_std = np.nanstd(tree_real, axis=0)
+        closest_raw_off_std = np.nanstd(closest_real, axis=0)
+        lowest_raw_off_std = np.nanstd(lowest_real, axis=0)
 
         x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
         bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
@@ -727,12 +757,11 @@ if __name__ == '__main__':
         plt.xlabel("Bin Number")
         plt.ylabel("log((True - Unf) / Error)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_PDF_mean.png")
+        plt.savefig("output/Multiple_Run_mean.png")
         plt.clf()
 
         '''
         Mean over the runs so bin mean, 9 bins on bottom, and mean of those is each one
-        True PDF: Take whole monteCarl set, normalize it, and use that as the true value, get unfolding with that
         true - unfolding / error for true PDF
         unfolding / True for mean of the bins
         Redo bins to have ends, hist with bin center and weights as the values
