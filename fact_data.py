@@ -745,7 +745,7 @@ if __name__ == '__main__':
         closest_raw_off_std = np.nanstd(closest_real, axis=0)
         lowest_raw_off_std = np.nanstd(lowest_real, axis=0)
 
-        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0])
+        x_raw_off = np.linspace(0, tree_raw_off.shape[0], tree_raw_off.shape[0]+1)
         bin_width = (x_raw_off[1:] - x_raw_off[:-1]) / 2.
         bin_center = (x_raw_off[:-1] + x_raw_off[1:]) / 2.
         plt.clf()
