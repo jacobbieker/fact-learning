@@ -772,6 +772,9 @@ if __name__ == '__main__':
         list_svd_tree = np.asarray(list_of_svd_errors[0])
         list_svd_low = np.asarray(list_of_svd_errors[2])
         list_svd_close = np.asarray(list_of_svd_errors[4])
+        list_svd_tree_error = np.asarray(list_of_svd_errors[1])
+        list_svd_low_error = np.asarray(list_of_svd_errors[3])
+        list_svd_close_error = np.asarray(list_of_svd_errors[5])
 
         list_min_tree = np.asarray(list_of_min_errors[0])
         list_min_low = np.asarray(list_of_min_errors[2])
@@ -779,6 +782,8 @@ if __name__ == '__main__':
 
         output.write("Tree Binning Overall Difference Mean and Std.:\n" + str(np.nanmean(tree_real)) + "\n" + str(
             np.nanstd(tree_real)) + "\n")
+        output.write("Tree Binning Overall Error Mean and Std.:\n" + str(np.nanmean(tree_error_real)) + "\n" + str(
+            np.nanstd(tree_error_real)) + "\n")
         output.write(
             "Closest Binning Overall Difference Mean and Std.:\n " + str(np.nanmean(closest_real)) + "\n" + str(
                 np.nanstd(closest_real)) + "\n")
@@ -794,15 +799,24 @@ if __name__ == '__main__':
         output.write(
             "Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_svd_low)) + "\n" + str(
                 np.nanstd(list_svd_low)) + "\n")
+        output.write(
+            "Tree Binning Overall SVD Error Mean and Std.:\n" + str(np.nanmean(list_svd_tree_error)) + "\n" + str(
+                np.nanstd(list_svd_tree_error)) + "\n")
+        output.write(
+            "Closest Binning Overall SVD Error Mean and Std.:\n " + str(np.nanmean(list_svd_close_error)) + "\n" + str(
+                np.nanstd(list_svd_close_error)) + "\n")
+        output.write(
+            "Lowest Binning Overall SVD Error Mean and Std.:\n" + str(np.nanmean(list_svd_low_error)) + "\n" + str(
+                np.nanstd(list_svd_low_error)) + "\n")
 
         output.write(
-            "Tree Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_min_tree)) + "\n" + str(
+            "Tree Binning Overall Min Difference Mean and Std.:\n" + str(np.nanmean(list_min_tree)) + "\n" + str(
                 np.nanstd(list_min_tree)) + "\n")
         output.write(
-            "Closest Binning Overall SVD Difference Mean and Std.:\n " + str(np.nanmean(list_min_close)) + "\n" + str(
+            "Closest Binning Overall Min Difference Mean and Std.:\n " + str(np.nanmean(list_min_close)) + "\n" + str(
                 np.nanstd(list_min_close)) + "\n")
         output.write(
-            "Lowest Binning Overall SVD Difference Mean and Std.:\n" + str(np.nanmean(list_min_low)) + "\n" + str(
+            "Lowest Binning Overall Min Difference Mean and Std.:\n" + str(np.nanmean(list_min_low)) + "\n" + str(
                 np.nanstd(list_min_low)) + "\n")
 
         output.write("Tree Binning Difference Mean and Std.:\n" + str(np.nanmean(tree_real, axis=1)) + "\n" + str(
