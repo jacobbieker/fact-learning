@@ -175,6 +175,7 @@ if __name__ == '__main__':
     # Just to save some Memory
     del off_data
     del mc_data
+    print(on_data.shape)
 
     # Now call this 500 times to get the variance, etc... Change plotting as well
     number_pulls = 500
@@ -191,6 +192,7 @@ if __name__ == '__main__':
     list_of_mcmc_errors = [[],[],[],[],[],[]]
     list_true = [[],[],[],[],[],[]]
     list_mcmc = [[],[],[],[],[],[]]
+    list_measured = [[],[],[],[],[],[]]
     list_of_acceptance_errors = []
     list_of_tree_condition_numbers = []
     list_of_classic_conditions = []
@@ -198,7 +200,7 @@ if __name__ == '__main__':
     list_of_lowest_conditions = []
 
     run = 0
-    plot = False
+    plot = True
     for indicies in testing_data:
         run += 1
         print(run)
@@ -354,51 +356,6 @@ if __name__ == '__main__':
             # Blobel Thing
             fig, ax = plt.subplots()
 
-
-        def compare_binning_svd(binned_g, binned_E, title):
-            linear_binning_model = ff.model.LinearModel()
-
-            # binned_g_validate = binned_g_validate[:10000]
-            # binned_E_validate = binned_E_validate[:10000]
-            linear_binning_model.initialize(digitized_obs=binned_g,
-                                            digitized_truth=binned_E)
-
-            vec_y, vec_x = linear_binning_model.generate_vectors(
-                digitized_obs=binned_g,
-                digitized_truth=binned_E)
-
-            vec_x_est, V_x_est, vec_b, sigma_b, vec_b_est, s_values = SVD_Unf(
-                linear_binning_model, vec_y, vec_x)
-
-            svd = ff.solution.SVDSolution()
-
-            svd.initialize(model=linear_binning_model, vec_g=vec_y)
-            vec_f_est, V_f_est = svd.fit()
-            str_1 = ''
-            for f_i_est, f_i in zip(vec_f_est, vec_b):
-                str_1 += '{0:.5f}\t'.format(f_i_est / f_i)
-            if plot:
-                print('{}'.format(str_1))
-            if plot:
-                normed_b = np.absolute(vec_b / sigma_b)
-                normed_b_est = np.absolute(vec_b_est / sigma_b)
-                order = np.argsort(normed_b)[::-1]
-
-                normed_b = normed_b[order]
-                normed_b_est = normed_b_est[order]
-                binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
-                bin_centers = (binning[1:] + binning[:-1]) / 2
-                bin_width = (binning[1:] - binning[:-1]) / 2
-
-                ax.hist(bin_centers, bins=binning, weights=normed_b_est, label='Unfolded: ' + title,
-                        histtype='step')
-
-
-        compare_binning_svd(binned_g_validate, binned_E_validate, "Tree")
-        # compare_binning_svd(digitized_classic, binned_E_validate, "Classic")
-        # compare_binning_svd(digitized_closest, binned_E_validate, "Closest")
-        # compare_binning_svd(digitized_lowest, binned_E_validate, "Lowest")
-
         linear_binning_model.initialize(digitized_obs=binned_g_validate,
                                         digitized_truth=binned_E_validate)
         # binned_E_validate += 1
@@ -422,20 +379,6 @@ if __name__ == '__main__':
         binning = np.linspace(0, len(normed_b), len(normed_b) + 1)
         bin_centers = (binning[1:] + binning[:-1]) / 2
         bin_width = (binning[1:] - binning[:-1]) / 2
-        if plot:
-            ax.hist(bin_centers,
-                    bins=binning,
-                    weights=normed_b,
-                    label='Truth',
-                    histtype='step')
-
-            ax.axhline(1.)
-            ax.set_xlabel(r'Index $j$')
-            ax.set_ylabel(r'$\left|b_j/\sigma_j\right|$')
-            ax.set_ylim([1e-2, 1e3])
-            ax.set_yscale("log", nonposy='clip')
-            ax.legend(loc='best')
-            fig.savefig('output/08_classic_binning_m+testing_' + str(run) + '.png')
         plt.clf()
 
 
@@ -503,7 +446,7 @@ if __name__ == '__main__':
             llh.initialize(vec_g=vec_g,
                            model=model)
 
-            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=2000,
+            sol_mcmc = ff.solution.LLHSolutionMCMC(n_used_steps=4000,
                                                    n_threads=4,
                                                    random_state=1337)
             sol_mcmc.initialize(llh=llh, model=model)
@@ -522,6 +465,7 @@ if __name__ == '__main__':
             list_of_mcmc_errors[index+1].append(sigma_vec_f)
             list_true[index].append(vec_f)
             list_mcmc[index].append(vec_f_est_mcmc)
+            list_measured[index].append(vec_g)
 
             # Every third one is of the same type
 
@@ -543,7 +487,7 @@ if __name__ == '__main__':
                 plt.clf()
 
 
-        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning", index=0)
+        test_different_binnings(binned_g_test, binned_E_test_validate, "Tree Binning Regularized", tau=0.1, index=0)
 
         # Now have the tree binning response matrix, need classic binning ones
 
@@ -567,9 +511,9 @@ if __name__ == '__main__':
                                        mode='lowest')
         digitized_lowest = lowest.digitize(detected_energy_test)
         plt.clf()
-        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning", index=2)
+        test_different_binnings(digitized_lowest, binned_E_test_validate, "Lowest Binning Regularized", tau=0.1, index=2)
         plt.clf()
-        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning", index=4)
+        test_different_binnings(digitized_closest, binned_E_test_validate, "Closest Binning Regularized", tau=0.1, index=4)
         plt.close()
         plt.clf()
         if run > 12:
@@ -587,7 +531,7 @@ if __name__ == '__main__':
     list_of_classic_conditions = remove_nan(list_of_classic_conditions)
     list_of_closest_conditions = remove_nan(list_of_closest_conditions)
     list_of_lowest_conditions = remove_nan(list_of_lowest_conditions)
-    with open("overall_stats2.txt", "w") as output:
+    with open("overall_stats_reg.txt", "w") as output:
         x_raw_off = np.linspace(0, list_of_tree_condition_numbers.shape[0], list_of_tree_condition_numbers.shape[0])
         plt.clf()
         plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
@@ -599,7 +543,7 @@ if __name__ == '__main__':
         plt.xlabel("Run Number")
         plt.ylabel("log(Condition)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Condition.png")
+        plt.savefig("output/Multiple_Run_Condition_Reg.png")
         plt.clf()
         plt.step(x_raw_off, list_of_closest_conditions, where="mid", label="Closest Binning")
         plt.step(x_raw_off, list_of_lowest_conditions, where="mid", label="Lowest Binning")
@@ -609,7 +553,7 @@ if __name__ == '__main__':
         plt.xlabel("Run Number")
         plt.ylabel("log(Condition)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Condition_noclassic.png")
+        plt.savefig("output/Multiple_Run_Condition_noclassic_Reg.png")
         output.write(
             "Tree Binning Condition Mean and Std.: " + str(np.mean(list_of_tree_condition_numbers)) + " " + str(
                 np.std(list_of_tree_condition_numbers)) + "\n")
@@ -654,7 +598,7 @@ if __name__ == '__main__':
         plt.xlabel("Run Number")
         plt.ylabel("log(Ratio)")
         plt.yscale('log')
-        plt.savefig("output/Multiple_Run_Difference_nlog.png")
+        plt.savefig("output/Multiple_Run_Difference_Reg.png")
 
         output.write("Tree Binning Difference Mean and Std.:\n" + str(np.mean(tree_real, axis=1)) + "\n" + str(np.std(tree_real, axis=1)) + "\n")
         output.write("Closest Binning Difference Mean and Std.:\n " + str(np.mean(closest_real, axis=1)) + "\n" + str(np.std(closest_real, axis=1)) + "\n")
